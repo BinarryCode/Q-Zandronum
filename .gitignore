@@ -2,6 +2,9 @@
 protocolspec/generator/__pycache__/
 
 # /
+VS
+VS/*
+VS/*.*
 debug
 release
 Debug
