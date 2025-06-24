@@ -101,3 +101,12 @@ Command SyncMapRotation
 	ExtendedCommand
 	Struct<MapRotationEntry>[] entries
 EndCommand
+
+Command OpenMenu
+	ExtendedCommand
+	String menu
+EndCommand
+
+Command CloseMenu
+	ExtendedCommand
+EndCommand

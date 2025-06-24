@@ -715,7 +715,7 @@ AActor *P_SpawnSubMissile (AActor *source, const PClass *type, AActor *target)
 	}
 	
 	if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( source ) )
-		other->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		other->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 	if (P_CheckMissileSpawn (other, source->radius))
 	{

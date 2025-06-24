@@ -626,6 +626,9 @@ void BOTS_RemoveBot( ULONG ulPlayerIdx, bool bExitMsg )
 		PLAYER_LeavesGame( ulPlayerIdx );
 	}
 
+	// [SB] Fire event scripts indicating this bot disconnected.
+	GAMEMODE_HandleEvent( GAMEEVENT_PLAYERLEAVESSERVER, nullptr, ulPlayerIdx, LEAVEREASON_KICKED );
+
 	if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 	{
 		// Redo the scoreboard.
@@ -688,6 +691,38 @@ void BOTS_RemoveAllBots( bool bExitMsg )
 		if ( playeringame[ulIdx] && players[ulIdx].pSkullBot && g_bBotIsInitialized[ulIdx] )
 			BOTS_RemoveBot( ulIdx, bExitMsg );
 	}
+}
+
+//*****************************************************************************
+//
+bool BOTS_RemoveRandomBot( void )
+{
+	unsigned int randomIndex = MAXPLAYERS;
+	bool botInGame = false;
+
+	// First, verify that there's a bot in the game.
+	for ( unsigned int i = 0; i < MAXPLAYERS; i++ )
+	{
+		if (( playeringame[i] ) && ( players[i].pSkullBot ))
+		{
+			botInGame = true;
+			break;
+		}
+	}
+
+	// If there isn't, return false.
+	if ( botInGame == false )
+		return false;
+
+	// Now randomly select a bot to remove.
+	do
+	{
+		randomIndex = ( BotRemove( ) % MAXPLAYERS );
+	} while (( playeringame[randomIndex] == false ) || ( players[randomIndex].pSkullBot == nullptr ));
+
+	// Now that we've found a valid bot, remove it.
+	BOTS_RemoveBot( randomIndex, true );
+	return true;
 }
 
 //*****************************************************************************
@@ -1948,6 +1983,9 @@ CSkullBot::CSkullBot( char *pszName, char *pszTeamName, ULONG ulPlayerNum )
 	// If this bot spawned as a spectator, let him know.
 	if ( m_pPlayer->bSpectating )
 		PostEvent( BOTEVENT_SPECTATING );
+
+	// [AK] The bot has successfully joined the game, trigger an event script to indicate that.
+	GAMEMODE_HandleEvent( GAMEEVENT_PLAYERCONNECT, NULL, ulPlayerNum );
 
 	// Refresh the HUD since a new player is now here (this affects the number of players in the game).
 	SCOREBOARD_RefreshHUD( );

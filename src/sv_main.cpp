@@ -1024,7 +1024,7 @@ void SERVER_CheckTimeouts( void )
 			     && ( ( gametic - g_aClients[ulIdx].ulLastCommandTic ) >= ( CLIENT_TIMEOUT * TICRATE ) ) )
 			{
 				Printf( "Unfinished connection from %s timed out.\n", g_aClients[ulIdx].Address.ToString() );
-				SERVER_DisconnectClient( ulIdx, false, false );
+				SERVER_DisconnectClient( ulIdx, false, false, LEAVEREASON_TIMEOUT );
 			}
 			continue;
 		}
@@ -1033,7 +1033,7 @@ void SERVER_CheckTimeouts( void )
 		// disconnect him.
 		if (( gametic - g_aClients[ulIdx].ulLastCommandTic ) >= ( CLIENT_TIMEOUT * TICRATE ))
 		{
-		    SERVER_DisconnectClient( ulIdx, true, true );
+		    SERVER_DisconnectClient( ulIdx, true, true, LEAVEREASON_TIMEOUT );
 			continue;
 		}
 
@@ -1170,6 +1170,11 @@ void SERVER_SendChatMessage( ULONG ulPlayer, ULONG ulMode, const char *pszString
 	// This way the code below doesn't need to be altered.
 	pszString = cleanedChatString.GetChars();
 
+
+	// [AK] Trigger an event script indicating that a chat message was received.
+	// If the event returns 0, then don't print the message or send it to the clients.
+	if ( GAMEMODE_HandleEvent( GAMEEVENT_CHAT, NULL, ulPlayer != MAXPLAYERS ? ulPlayer : -1, ulMode - CHATMODE_GLOBAL, true ) == 0 )
+		return;
 	SERVERCOMMANDS_PlayerSay( ulPlayer, pszString, ulMode, bFordidChatToPlayers );
 
 	// [BB] This is to make the lines readily identifiable, necessary
@@ -1671,6 +1676,11 @@ void SERVER_ConnectNewPlayer( BYTESTREAM_s *pByteStream )
 
 	// [RC] Clients may wish to ignore this new player.
 	SERVERCOMMANDS_PotentiallyIgnorePlayer( g_lCurrentClient );
+
+	// [AK] Trigger an event script indicating that the client has connected to the server.
+	// Also indicate if they had previously connected to the server.
+	// [CHECKMELATER]
+	//GAMEMODE_HandleEvent( GAMEEVENT_PLAYERCONNECT, NULL, g_lCurrentClient, !!savedInfo );
 }
 
 //*****************************************************************************
@@ -1928,7 +1938,7 @@ void SERVER_SetupNewConnection( BYTESTREAM_s *pByteStream, bool bNewPlayer )
 		lClient = g_lCurrentClient;
 
 	if ( g_aClients[lClient].State >= CLS_SPAWNED_BUT_NEEDS_AUTHENTICATION )
-		SERVER_DisconnectClient( lClient, false, true );
+		SERVER_DisconnectClient( lClient, false, true, LEAVEREASON_ERROR );
 
 	// Read in the client version info.
 	clientVersion = NETWORK_ReadString( pByteStream );
@@ -2421,7 +2431,7 @@ void SERVER_ClientError( ULONG ulClient, ULONG ulErrorCode )
 	g_floodProtectionIPQueue.addAddress ( g_aClients[ulClient].Address, g_GameTime / 1000 );
 
 	// [BB] Be sure to properly disconnect the client.
-	SERVER_DisconnectClient( ulClient, false, false );
+	SERVER_DisconnectClient( ulClient, false, false, LEAVEREASON_ERROR );
 }
 
 //*****************************************************************************
@@ -2617,7 +2627,7 @@ void SERVER_SendFullUpdate( ULONG ulClient )
 			continue;
 
 		// [BB] The other clients already have destroyed this actor, so don't spawn it.
-		if ( pActor->ulNetworkFlags & NETFL_DESTROYED_ON_CLIENT )
+		if ( pActor->NetworkFlags & NETFL_DESTROYED_ON_CLIENT )
 			continue;
 
 		// Don't spawn players, items about to be deleted, inventory items
@@ -2625,7 +2635,7 @@ void SERVER_SendFullUpdate( ULONG ulClient )
 		if (( pActor->IsKindOf( RUNTIME_CLASS( APlayerPawn ))) ||
 			( pActor->state == RUNTIME_CLASS ( AInventory )->ActorInfo->FindState("HoldAndDestroy") ) ||	// S_HOLDANDDESTROY
 			( pActor->state == RUNTIME_CLASS ( AInventory )->ActorInfo->FindState("Held") ) || // S_HELD
-			( pActor->ulNetworkFlags & NETFL_ALLOWCLIENTSPAWN ))
+			( pActor->NetworkFlags & NETFL_ALLOWCLIENTSPAWN ))
 		{
 			continue;
 		}
@@ -2651,7 +2661,7 @@ void SERVER_SendFullUpdate( ULONG ulClient )
 		{
 			// [EP] Handle level-spawned actors which didn't move yet on X/Y axes.
 			bool shouldLevelSpawn = false;
-			if ((pActor->ulSTFlags & STFL_LEVELSPAWNED) != 0)
+			if ((pActor->STFlags & STFL_LEVELSPAWNED) != 0)
 			{
 				shouldLevelSpawn = (pActor->x == pActor->SpawnPoint[0] 
 					&& pActor->y == pActor->SpawnPoint[1]);
@@ -2713,7 +2723,7 @@ void SERVER_SendFullUpdate( ULONG ulClient )
 			// [BC] It's not necessarily important for clients to know this, such
 			// as with invasion spawners. You can do it if you want, though! It would
 			// probably save headache later on.
-			//if ( pActor->ulNetworkFlags & NETFL_UPDATEARGUMENTS )
+			//if ( pActor->NetworkFlags & NETFL_UPDATEARGUMENTS )
 			// [BB] I don't want to export NETFL_UPDATEARGUMENTS to DECORATE, so we have
 			// to tell the clients all the arguments.
 			if ( ( pActor->args[0] != 0 )
@@ -2957,7 +2967,7 @@ void SERVER_AdjustPlayersReactiontime( const ULONG ulPlayer )
 
 //*****************************************************************************
 //
-void SERVER_DisconnectClient( ULONG ulClient, bool bBroadcast, bool bSaveInfo )
+void SERVER_DisconnectClient( ULONG ulClient, bool bBroadcast, bool bSaveInfo, LEAVEREASON_e reason )
 {
 	ULONG	ulIdx;
 
@@ -3059,6 +3069,12 @@ void SERVER_DisconnectClient( ULONG ulClient, bool bBroadcast, bool bSaveInfo )
 	{
 		PLAYER_LeavesGame( ulClient );
 	}
+
+	// [SB] Fire event scripts indicating this client disconnected.
+	// GAMEEVENT_PLAYERCONNECT is only fired after their state reaches CLS_SPAWNED, so do the same here.
+	// [CHECKMELATER]
+	// if ( OldState >= CLS_SPAWNED )
+		//GAMEMODE_HandleEvent( GAMEEVENT_PLAYERLEAVESSERVER, nullptr, ulClient, reason );
 
 	// Redo the scoreboard.
 	SERVERCONSOLE_ReListPlayers( );
@@ -3549,7 +3565,7 @@ void SERVER_ReconnectNewLevel( const char *pszMapName )
 		SERVER_SendClientPacket( ulIdx, true );
 
 		// Disconnect the client.
-		SERVER_DisconnectClient( ulIdx, false, false );
+		SERVER_DisconnectClient( ulIdx, false, false, LEAVEREASON_RECONNECT );
 	}
 }
 
@@ -3643,7 +3659,7 @@ void SERVER_KickPlayer( ULONG ulPlayer, const char *pszReason )
 		g_aClients[ulPlayer].SavedPackets.ClearScheduling();
 
 		// Tell the other players that this player has been kicked.
-		SERVER_DisconnectClient( ulPlayer, true, false );
+		SERVER_DisconnectClient( ulPlayer, true, false, LEAVEREASON_KICKED );
 	}
 }
 
@@ -4488,7 +4504,7 @@ bool SERVER_ProcessCommand( LONG lCommand, BYTESTREAM_s *pByteStream )
 	case CLC_QUIT:
 
 		// Client has left the game.
-		SERVER_DisconnectClient( g_lCurrentClient, true, true );
+		SERVER_DisconnectClient( g_lCurrentClient, true, true, LEAVEREASON_LEFT );
 		break;
 	case CLC_STARTCHAT:
 	case CLC_ENDCHAT:

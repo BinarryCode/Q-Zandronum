@@ -148,6 +148,17 @@ struct gameinfo_t
 	bool norandomplayerclass;
 	bool forcekillscripts;
 
+	// [AK] Forces actors to trigger GAMEEVENT_ACTOR_SPAWNED or GAMEVENT_ACTOR_DAMAGED unless they
+	// enabled the STFL_NOSPAWNEVENTSCRIPT or STFL_NODAMAGEEVENTSCRIPT flags respectively.
+	bool bForceSpawnEventScripts;
+	bool bForceDamageEventScripts;
+
+	// [TRSR] Allows the triggering of GAMEEVENT_DOMINATION_CONTEST.
+	bool bAllowDominationContestScripts;
+
+	// [AK] A list of all custom data for players, particularly used by custom columns.
+	//TMap<FName, PlayerData> CustomPlayerData;
+
 	const char *GetFinalePage(unsigned int num) const;
 };
 

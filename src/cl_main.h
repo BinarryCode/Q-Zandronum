@@ -186,6 +186,9 @@ bool				CLIENT_ReadActorFromNetID( int netid, const PClass *subclass, bool allow
 											   const char *commandName = "CLIENT_ReadActorFromNetID",
 											   const char *parameterName = "actor" );
 
+bool				CLIENT_HasRCONAccess();
+bool				CLIENT_GainingRCONAccess();
+
 void				CLIENT_PREDICT_Construct( void );
 void				CLIENT_PREDICT_PlayerPredict( void );
 void				CLIENT_PREDICT_PlayerTeleported( void );

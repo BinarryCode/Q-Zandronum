@@ -91,11 +91,24 @@
 #include "cl_main.h"
 #include "unlagged.h"
 #include "campaign.h"
+#include "sv_ban.h"
+#include "bots.h"
+#include "menu/menu.h"
+#include "joinqueue.h"
+#include "domination.h" // [TRSR]
 
 #include "g_shared/a_pickups.h"
 
 // [BB] A std::pair inside TArray inside TArray didn't seem to work.
 std::vector<TArray<std::pair<FString, FString> > > g_dbQueries;
+
+// [Binary/AK] The maximum number of minutes a mod can ban a player for with BanFromGame.
+// A value of zero means that the server forbids use of the function.
+CUSTOM_CVAR( Int, sv_maxacsbanduration, 0, CVAR_SERVERINFO | CVAR_NOSETBYACS )
+{
+	if ( self < 0 )
+		self = 0;
+}
 
 //
 // [TP] Overridable system time property
@@ -326,6 +339,9 @@ inline int uallong(const int &foo)
 
 // [BC] When true, any console commands/line specials were executed via the ConsoleCommand p-code.
 bool	g_bCalledFromConsoleCommand = false;
+// [AK] A pointer to the script currently being run. When it's not equal to NULL, it means that
+// any action or line specials are being executed inside an ACS script.
+static	DLevelScript	*g_pCurrentScript = NULL;
 
 
 //============================================================================
@@ -5746,6 +5762,12 @@ enum EACSFunctions
 	ACSF_LumpClose,
 	ACSF_VelIntercept, // [TDRR] Expose VelIntercept to ACS.
 
+	ACSF_AddBot,
+	ACSF_RemoveBot,
+	ACSF_OpenMenu,
+	ACSF_CloseMenu,
+	ACSF_BanFromGame, // [Binary] Added BanFromGame to function set.
+
 	// ZDaemon
 	ACSF_GetTeamScore = 19620,	// (int team)
 	ACSF_SetTeamScore,			// (int team, int value)
@@ -8619,6 +8641,146 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 
 				return 0;
 			}
+
+		case ACSF_AddBot:
+			{
+				// [AK] Don't add bots on the clients end, or on levels without bot nodes.
+				if (( NETWORK_InClientMode( )) || ( level.flagsZA & LEVEL_ZA_NOBOTNODES ))
+					return 0;
+
+				const unsigned int freePlayerSlot = BOTS_FindFreePlayerSlot( );
+				const char *botName = nullptr;
+				const char *teamName = nullptr;
+
+				// [AK] If there's no more free player slots, then no more bots can be added.
+				if ( freePlayerSlot == MAXPLAYERS )
+					return 0;
+
+				if ( argCount > 0 )
+				{
+					botName = FBehavior::StaticLookupString( args[0] );
+
+					// [AK] An empty string means add a random bot to the game.
+					if ( strlen( botName ) == 0 )
+						botName = nullptr;
+					// [AK] Otherwise, make sure it's a valid bot name.
+					else if (BOTS_IsValidName( (char*) botName ) == false )
+						return 0;
+
+					if ( argCount > 1 )
+					{
+						// [AK] Make sure the current game mode supports teams.
+						if (( GAMEMODE_GetCurrentFlags( ) & GMF_PLAYERSONTEAMS ) == false )
+							return 0;
+
+						// [AK] Also make sure the team is valid.
+						if ( TEAM_CheckIfValid( args[1] ) == false )
+							return 0;
+
+						teamName = TEAM_GetName( args[1] );
+					}
+				}
+
+				CSkullBot *bot = new CSkullBot((char*) botName, (char*) teamName, freePlayerSlot);
+				return 1;
+			}
+
+		case ACSF_RemoveBot:
+			{
+				// [AK] Don't remove bots on the clients end, or on levels without bot nodes.
+				if (( NETWORK_InClientMode( )) || ( level.flagsZA & LEVEL_ZA_NOBOTNODES ))
+					return 0;
+
+				// [AK] If a name is provided, remove the bot with that name.
+				if ( argCount > 0 )
+				{
+					const char *botName = FBehavior::StaticLookupString( args[0] );
+
+					for ( unsigned int i = 0; i < MAXPLAYERS; i++ )
+					{
+						if (( playeringame[i] == false ) || ( players[i].bIsBot == false ))
+							continue;
+
+						FString playerName = players[i].userinfo.GetName( );
+						V_UnColorizeString( playerName );
+
+						if ( playerName.CompareNoCase( botName ) == 0 )
+						{
+							BOTS_RemoveBot( i, true );
+							return 1;
+						}
+					}
+
+					return 0;
+				}
+				// [AK] Otherwise, try removing a random bot from the game.
+				else
+				{
+					return BOTS_RemoveRandomBot( );
+				}
+			}
+
+		case ACSF_OpenMenu:
+			{
+				const char *menuName = FBehavior::StaticLookupString( args[0] );
+
+				// [AK] Don't try to open a menu that doesn't exist.
+				if ( M_IsValidMenu( menuName ) == false )
+					return 0;
+
+				// [AK] The server will tell the activator (if they're a player) to open the menu.
+				if ( NETWORK_GetState( ) == NETSTATE_SERVER )
+				{
+					if (( activator == nullptr ) || ( activator->player == nullptr ))
+						return 0;
+
+					SERVERCOMMANDS_OpenMenu( activator->player - players, menuName );
+				}
+				else
+				{
+					M_StartControlPanel( true );
+					M_SetMenu( menuName, -1 );
+				}
+
+				return 1;
+			}
+
+		case ACSF_CloseMenu:
+			{
+				// [AK] The server will tell the activator (if they're a player) to close the menu.
+				if ( NETWORK_GetState( ) == NETSTATE_SERVER )
+				{
+					if (( activator == nullptr ) || ( activator->player == nullptr ))
+						return 0;
+
+					SERVERCOMMANDS_CloseMenu( activator->player - players );
+				}
+				else
+				{
+					M_ClearMenus( );
+				}
+
+				return 1;
+			}
+
+		// [Binary] Function to temporarily ban players, up to whatever sv_maxacsbanduration allows.
+		case ACSF_BanFromGame:
+		{
+			// Only call the function on the server's end if ACS bans are allowed.
+			if (( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( sv_maxacsbanduration > 0 ))
+			{
+				int playerIndex = args[0];
+				if(PLAYER_IsValidPlayer( playerIndex ))
+				{
+					int duration = clamp<int>( args[1], 1, sv_maxacsbanduration );
+					FString Output;
+					Output.Format("%dmin", duration);
+					SERVERBAN_BanPlayer( playerIndex, Output.GetChars( ), (argCount >= 3) ? FBehavior::StaticLookupString( args[2] ) : NULL );
+					return 1;
+				}
+			}
+			return 0;
+		}
 
 		case ACSF_InCampaign:
 			{
@@ -12729,6 +12891,24 @@ DLevelScript::DLevelScript (AActor *who, line_t *where, int num, const ScriptPtr
 	// [TP] We need to store this as activefontname instead.
 	activefontname = "SmallFont";
 
+	// [AK] Check if this is an event script triggered by GAMEEVENT_ACTOR_DAMAGED or
+	// GAMEEVENT_ACTOR_DAMAGED_PREMOD. This is where we initialize the script's target,
+	// source, and inflictor pointers by using the temporary activator's own pointers.
+	if (( NETWORK_InClientMode( ) == false ) && ( who != NULL ) &&
+		( code->Type == SCRIPT_Event ) && ( args[0] == GAMEEVENT_ACTOR_DAMAGED || args[0] == GAMEEVENT_ACTOR_DAMAGED_PREMOD ))
+	{
+		pDamageTarget = who->target;
+		pDamageSource = who->master;
+		pDamageInflictor = who->tracer;
+
+		// [AK] Make the target actor the activator.
+		activator = pDamageTarget;
+	}
+	else
+	{
+		pDamageTarget = pDamageSource = pDamageInflictor = NULL;
+	}
+
 	hudwidth = hudheight = 0;
 	ClipRectLeft = ClipRectTop = ClipRectWidth = ClipRectHeight = WrapWidth = 0;
 	state = SCRIPT_Running;
@@ -13264,6 +13444,26 @@ bool ACS_IsCalledFromConsoleCommand( void )
 
 //*****************************************************************************
 //
+bool ACS_IsCalledFromScript( void )
+{
+	return ( g_pCurrentScript != NULL );
+}
+
+//*****************************************************************************
+//
+bool ACS_IsEventScript( int script )
+{
+	FBehavior *pModule = NULL;
+	const ScriptPtr *pScriptData = FBehavior::StaticFindScript( script, pModule );
+
+	if ( pScriptData == NULL )
+		return ( false );
+
+	return ( pScriptData->Type == SCRIPT_Event );
+}
+
+//*****************************************************************************
+//
 bool ACS_IsScriptClientSide( int script )
 {
 	FBehavior		*pModule = NULL;
@@ -13314,6 +13514,28 @@ bool ACS_ExistsScript( int script )
 {
 	FBehavior* module = NULL;
 	return FBehavior::StaticFindScript( script, module ) != NULL;
+}
+
+//*****************************************************************************
+//
+AActor *ACS_GetScriptDamagePointers( unsigned int pointer )
+{
+	if ( g_pCurrentScript )
+	{
+		switch ( pointer )
+		{
+			case AAPTR_DAMAGE_SOURCE:
+				return g_pCurrentScript->pDamageSource;
+
+			case AAPTR_DAMAGE_INFLICTOR:
+				return g_pCurrentScript->pDamageInflictor;
+
+			case AAPTR_DAMAGE_TARGET:
+				return g_pCurrentScript->pDamageTarget;
+		}
+	}
+
+	return NULL;
 }
 
 //*****************************************************************************

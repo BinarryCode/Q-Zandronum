@@ -453,6 +453,21 @@ enum
 	// [BB] Hidden by HideOrDestroyIfSafe(), will be restored when the map is reset.
 	STFL_HIDDEN_INSTEAD_OF_DESTROYED		= 0x00800000,
 
+	// [AK] This actor may (not) trigger GAMEEVENT_ACTOR_SPAWNED upon spawning.
+	STFL_USESPAWNEVENTSCRIPT	= 0x01000000,
+	STFL_NOSPAWNEVENTSCRIPT		= 0x02000000,
+
+	// [AK] This actor may (not) trigger the GAMEEVENT_ACTOR_DAMAGED event type.
+	STFL_USEDAMAGEEVENTSCRIPT	= 0x04000000,
+	STFL_NODAMAGEEVENTSCRIPT	= 0x08000000,
+
+	// [AK] This projectile will always collide/push the shooter's allies, even if sv_shootthroughallies
+	// or sv_dontpushallies are enabled.
+	STFL_FORCEALLYCOLLISION		= 0x10000000,
+
+	// [AK] This actor was spawned by a random spawner.
+	STFL_RANDOMSPAWNED			= 0x20000000,
+
 // More flags for Skulltag... these having to do with the network.
 
 	// This object does not have a network ID.
@@ -1037,17 +1052,14 @@ public:
 	// [BB] If 0, everybody can see the actor, if > 0, only members of team (VisibleToTeam-1) can see it.
 	DWORD			VisibleToTeam;
 
-	// [BB] If 0, not limited to any team, if > 0, limited to the team with number (ulLimitedToTeam-1).
-	// [EP] TODO: remove the 'ul' prefix from this variable, it isn't ULONG anymore
-	unsigned int	ulLimitedToTeam;
+	// [BB] If 0, not limited to any team, if > 0, limited to the team with number (LimitedToTeam-1).
+	unsigned int	LimitedToTeam;
 
 	// [BC] A new set of flags that ST uses.
-	// [EP] TODO: remove the 'ul' prefix from this variable, it isn't ULONG anymore
-	unsigned int	ulSTFlags;
+	unsigned int	STFlags;
 
 	// [BC] A new set of flags that deal with network games.
-	// [EP] TODO: remove the 'ul' prefix from this variable, it isn't ULONG anymore
-	unsigned int	ulNetworkFlags;
+	unsigned int	NetworkFlags;
 
 	int				special1;		// Special info
 	int				special2;		// Special info

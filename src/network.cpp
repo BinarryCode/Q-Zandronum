@@ -1281,7 +1281,7 @@ bool NETWORK_ClientsideFunctionsAllowed( const AActor* actor )
 		return true;
 
 	// Allow all functions for clientside actors
-	if ((actor->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) || ( actor->lNetID == -1 ))
+	if ((actor->NetworkFlags & NETFL_CLIENTSIDEONLY ) || ( actor->lNetID == -1 ))
 		return true;
 	
 	return NETWORK_ClientsideFunctionsAllowed( actor->player ) && ( actor->player->mo == actor );
@@ -1345,7 +1345,7 @@ bool NETWORK_IsActorClientHandled( const AActor *pActor )
 	if ( pActor == NULL )
 		return false;
 
-	return ( ( pActor->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) || ( pActor->lNetID == -1 ) );
+	return ( ( pActor->NetworkFlags & NETFL_CLIENTSIDEONLY ) || ( pActor->lNetID == -1 ) );
 }
 
 //*****************************************************************************

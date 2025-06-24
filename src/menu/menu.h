@@ -157,6 +157,7 @@ struct FFreeformMenuDescriptor : public FMenuDescriptor
 	bool mDontDim;
 	bool mResetScroll;
 	bool mNetgameOnly; // [TP]
+	bool mRequiresRCON; // [AK]
 
 	// [BB] The default constructor initializes our custom members.
 	FFreeformMenuDescriptor() : mNetgameOnly(false) {}
@@ -198,6 +199,7 @@ struct FOptionMenuDescriptor : public FMenuDescriptor
 	int mPosition;
 	bool mDontDim;
 	bool mNetgameOnly; // [TP]
+	bool mRequiresRCON; // [AK]
 
 	// [BB] The default constructor initializes our custom members.
 	FOptionMenuDescriptor ( ) : mNetgameOnly ( false ) {}
@@ -906,6 +908,11 @@ void M_StartMessage(const char *message, int messagemode, FName action = NAME_No
 DMenu *StartPickerMenu(DMenu *parent, const char *name, FColorCVar *cvar);
 void M_RefreshModesList ();
 void M_InitVideoModesMenu ();
+void M_RconAccessGranted(); // [CHECKMELATER]
+void M_SetLastRconAccessRequest(int tic); // [AK]
+bool M_InServerSetupMenu(); // [AK]
+bool M_IsValidMenu(const char *name); // [AK]
+
 
 
 

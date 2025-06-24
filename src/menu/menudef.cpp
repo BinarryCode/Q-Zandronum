@@ -1539,6 +1539,11 @@ static void ParseFreeformMenuBody(FScanner &sc, FFreeformMenuDescriptor *desc, F
 		{
 			desc->mNetgameOnly = true;
 		}
+		// [AK] This menu can only be opened by clients with RCON access.
+		else if ( sc.Compare ( "RequiresRconAccess" ))
+		{
+			desc->mRequiresRCON = true;
+		}
 		else
 		{
 			sc.ScriptError("Unknown keyword '%s'", sc.String);
@@ -2191,6 +2196,11 @@ static void ParseOptionMenuBody(FScanner &sc, FOptionMenuDescriptor *desc, int i
 		else if ( sc.Compare ( "NetgameOnly" ))
 		{
 			desc->mNetgameOnly = true;
+		}
+		// [AK] This menu can only be opened by clients with RCON access.
+		else if ( sc.Compare ( "RequiresRconAccess" ))
+		{
+			desc->mRequiresRCON = true;
 		}
 		// [BB]
 		else if ( sc.Compare ( "ServerBrowserSlot" ) )

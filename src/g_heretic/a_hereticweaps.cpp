@@ -523,7 +523,7 @@ void FireMacePL1B (AActor *actor)
 	S_Sound (ball, CHAN_BODY, "weapons/maceshoot", 1, ATTN_NORM, true, actor);
 	
 	if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( actor ) )
-		ball->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		ball->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 	// [BC] If we're the server, spawn the ball and play the sound.
 	if ( NETWORK_GetState( ) == NETSTATE_SERVER )
@@ -546,7 +546,7 @@ void FireMacePL1B (AActor *actor)
 		S_Sound (ball, CHAN_BODY, "weapons/maceshoot", 1, ATTN_NORM, true, actor);
 		
 		if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( actor ) )
-			ball->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			ball->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 		// [BC] If we're the server, spawn the ball and play the sound.
 		if ( NETWORK_GetState( ) == NETSTATE_SERVER )
@@ -566,7 +566,7 @@ void FireMacePL1B (AActor *actor)
 		S_Sound (ball, CHAN_BODY, "weapons/maceshoot", 1, ATTN_NORM, true, actor);
 		
 		if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( actor ) )
-			ball->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			ball->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 		// [BC] If we're the server, spawn the ball and play the sound.
 		if ( NETWORK_GetState( ) == NETSTATE_SERVER )
@@ -1262,7 +1262,7 @@ DEFINE_ACTION_FUNCTION(AActor, A_SpawnRippers)
 		ripper->vely = FixedMul (ripper->Speed, finesine[angle]);
 		
 		if ( NETWORK_InClientMode() )
-			ripper->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			ripper->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 		
 		if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 			UNLAGGED_UnlagAndReplicateMissile( self, ripper, false, false, false );
@@ -1901,7 +1901,7 @@ DEFINE_ACTION_FUNCTION(AActor, A_FirePhoenixPL2)
 	mo->velz = FixedMul (mo->Speed, slope);
 	
 	if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( self ) )
-		mo->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		mo->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 	else if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 		UNLAGGED_UnlagAndReplicateMissile( self, mo, false, false, false );
 
@@ -1922,7 +1922,7 @@ DEFINE_ACTION_FUNCTION(AActor, A_FirePhoenixPL2)
 		mo->velz = FixedMul (mo->Speed, slope);
 		
 		if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( self ) )
-			mo->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			mo->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 		else if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 			UNLAGGED_UnlagAndReplicateMissile( self, mo, false, false, false );
 
@@ -1940,7 +1940,7 @@ DEFINE_ACTION_FUNCTION(AActor, A_FirePhoenixPL2)
 		mo->velz = FixedMul (mo->Speed, slope);
 		
 		if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( self ) )
-			mo->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			mo->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 		else if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 			UNLAGGED_UnlagAndReplicateMissile( self, mo, false, false, false );
 

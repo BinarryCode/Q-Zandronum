@@ -67,6 +67,7 @@
 #include "possession.h"
 #include "p_lnspec.h"
 #include "p_acs.h"
+#include "gi.h"
 #include "c_dispatch.h"
 #include "cl_commands.h"
 #include "c_bind.h"	// [geNia] To tell user what key to press to ready.
@@ -94,6 +95,9 @@ static	GAMEMODE_s				g_GameModes[NUM_GAMEMODES];
 
 // Our current game mode.
 static	GAMEMODE_e				g_CurrentGameMode;
+
+// [AK] The result value of the current event being executed.
+static	LONG					g_lEventResult = 1;
 
 // [BB] Implement the string table and the conversion functions for the GMF and GAMEMODE enums.
 #define GENERATE_ENUM_STRINGS  // Start string generation
@@ -1262,17 +1266,123 @@ void GAMEMODE_SetState( GAMESTATE_e GameState )
 
 //*****************************************************************************
 //
-void GAMEMODE_HandleEvent ( const GAMEEVENT_e Event, AActor *pActivator, const int DataOne, const int DataTwo )
+LONG GAMEMODE_HandleEvent ( const GAMEEVENT_e Event, AActor *pActivator, const int DataOne, const int DataTwo, const bool bRunNow, const int OverrideResult )
 {
 	// [BB] Clients don't start scripts.
 	if ( NETWORK_InClientMode() )
-		return;
+		return 1;
+
+	// [AK] Remember the old event's result value, in case we need to
+	// handle nested event calls (i.e. an event that's triggered in
+	// the middle of another event).
+	const LONG lOldResult = GAMEMODE_GetEventResult( );
+	GAMEMODE_SetEventResult( OverrideResult );
 
 	// [BB] The activator of the event activates the event script.
 	// The first argument is the type, e.g. GAMEEVENT_PLAYERFRAGS,
 	// the second and third are specific to the event, e.g. the second is the number of the fragged player.
 	// The third argument will be zero if it isn't used in the script.
-	FBehavior::StaticStartTypedScripts( SCRIPT_Event, pActivator, true, Event, false, false, DataOne, DataTwo );
+	FBehavior::StaticStartTypedScripts( SCRIPT_Event, pActivator, true, Event, bRunNow, false, DataOne, DataTwo );
+
+	// [AK] Get the result value of the event, then reset it back to the old value.
+	LONG lResult = GAMEMODE_GetEventResult( );
+	GAMEMODE_SetEventResult( lOldResult );
+
+	// [AK] Return the result value of the event.
+	return lResult;
+}
+
+//*****************************************************************************
+//
+void GAMEMODE_HandleSpawnEvent ( AActor *actor )
+{
+	if ( actor == nullptr )
+		return;
+
+	// [AK] We shouldn't need to execute this for players since we already have
+	// special script types like ENTER, RETURN, and RESPAWN.
+	if (( actor->player == nullptr ) && (( actor->STFlags & STFL_NOSPAWNEVENTSCRIPT ) == false ))
+	{
+		bool notImportant = false;
+
+		// [AK] Projectiles and BulletPuffs can have NOBLOCKMAP enabled but that
+		// doesn't make them unimportant.
+		if (( actor->flags & MF_NOBLOCKMAP ) && ((( actor->flags & MF_MISSILE ) == false ) && ( actor->IsKindOf( PClass::FindClass( NAME_BulletPuff )) == false )))
+			notImportant = true;
+		else if (( actor->flags & MF_NOSECTOR ) || ( actor->IsKindOf( RUNTIME_CLASS( AHexenArmor ))))
+			notImportant = true;
+
+		// [AK] If we want to force GAMEEVENT_ACTOR_SPAWNED on every actor, then
+		// ignore less important actors unless they enabled USESPAWNEVENTSCRIPT.
+		if (( actor->STFlags & STFL_USESPAWNEVENTSCRIPT ) || (( gameinfo.bForceSpawnEventScripts ) && ( notImportant == false )))
+		{
+			enum
+			{
+				GAMEEVENT_SPAWN_LEVELSPAWNED	= 1 << 0,
+				GAMEEVENT_SPAWN_RANDOMSPAWNED	= 1 << 1,
+			};
+
+			unsigned int spawnEventFlags = 0;
+
+			if ( actor->STFlags & STFL_LEVELSPAWNED )
+				spawnEventFlags |= GAMEEVENT_SPAWN_LEVELSPAWNED;
+
+			if ( actor->STFlags & STFL_RANDOMSPAWNED )
+				spawnEventFlags |= GAMEEVENT_SPAWN_RANDOMSPAWNED;
+
+			GAMEMODE_HandleEvent( GAMEEVENT_ACTOR_SPAWNED, actor, spawnEventFlags, 0, true );
+		}
+	}
+}
+
+//*****************************************************************************
+//
+bool GAMEMODE_HandleDamageEvent ( AActor *target, AActor *inflictor, AActor *source, int &damage, FName mod, bool bBeforeArmor )
+{
+	// [AK] Don't run any scripts if the target doesn't allow executing GAMEEVENT_ACTOR_DAMAGED.
+	if ( target->STFlags & STFL_NODAMAGEEVENTSCRIPT )
+		return true;
+
+	// [AK] Don't run any scripts if the target can't execute GAMEEVENT_ACTOR_DAMAGED unless
+	// all actors are forced to execute it.
+	if ((( target->STFlags & STFL_USEDAMAGEEVENTSCRIPT ) == false ) && ( gameinfo.bForceDamageEventScripts == false ))
+		return true;
+	
+	const GAMEEVENT_e DamageEvent = bBeforeArmor ? GAMEEVENT_ACTOR_DAMAGED_PREMOD : GAMEEVENT_ACTOR_DAMAGED;
+	const int originalDamage = damage;
+
+	// [AK] We somehow need to pass all the actor pointers into the script itself. A simple way
+	// to do this is temporarily spawn a temporary actor and change its actor pointers to the target,
+	// source, and inflictor. We can then use these to initialize the AAPTR_DAMAGE_TARGET,
+	// AAPTR_DAMAGE_SOURCE, and AAPTR_DAMAGE_INFLICTOR pointers of the script.
+	AActor *temp = Spawn( "MapSpot", target->x, target->y, target->z, NO_REPLACE );
+
+	temp->target = target;
+	temp->master = source;
+	temp->tracer = inflictor;
+
+	damage = GAMEMODE_HandleEvent( DamageEvent, temp, damage, GlobalACSStrings.AddString( mod ), true, damage );
+
+	// [AK] Destroy the temporary actor after executing all event scripts.
+	temp->Destroy( );
+
+	// [AK] If the new damage is zero, that means the target shouldn't take damage in P_DamageMobj.
+	// Allow P_DamageMobj to execute anyways if the original damage was zero (i.e. NODAMAGE flag).
+	return ( originalDamage == 0 || damage != 0 );
+}
+
+//*****************************************************************************
+//
+LONG GAMEMODE_GetEventResult( )
+{
+	return g_lEventResult;
+}
+
+//*****************************************************************************
+//
+void GAMEMODE_SetEventResult( LONG lResult )
+{
+	g_lEventResult = lResult;
 }
 
 //*****************************************************************************

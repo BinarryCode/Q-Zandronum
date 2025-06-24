@@ -110,7 +110,7 @@ void AFastProjectile::Tick ()
 						}
 					}
 					
-					if ((( ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && target && target->player )
+					if ((( STFlags & STFL_EXPLODEONDEATH ) == false ) && target && target->player )
 					{
 						if ( target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( this ) )
 							PLAYER_StruckPlayer( target->player );
@@ -141,7 +141,7 @@ void AFastProjectile::Tick ()
 				z = floorz;
 				P_HitFloor (this);
 				
-				if ((( ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && target && target->player )
+				if ((( STFlags & STFL_EXPLODEONDEATH ) == false ) && target && target->player )
 				{
 					if ( target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( this ) )
 						PLAYER_StruckPlayer( target->player );
@@ -163,7 +163,7 @@ void AFastProjectile::Tick ()
 					return;
 				}
 				
-				if ((( ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && target && target->player )
+				if ((( STFlags & STFL_EXPLODEONDEATH ) == false ) && target && target->player )
 				{
 					if ( target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( this ) )
 						PLAYER_StruckPlayer( target->player );
@@ -225,12 +225,12 @@ void AFastProjectile::Effect()
 					// [BB] Assume that the trail is just for decorative purposes and let the
 					// client spawn it on its own.
 					if ( NETWORK_InClientMode() )
-						act->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+						act->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 					// [BB] Since clients spawn these on their own, prevent the 
 					// server from printing warnings by marking this as SERVERSIDEONLY.
 					else if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 					{
-						act->ulNetworkFlags |= NETFL_SERVERSIDEONLY;
+						act->NetworkFlags |= NETFL_SERVERSIDEONLY;
 						act->FreeNetID ();
 					}
 				}

@@ -362,6 +362,14 @@ void FMapInfoParser::ParseGameInfo()
 		GAMEINFOKEY_BOOL(norandomplayerclass, "norandomplayerclass")
 		GAMEINFOKEY_BOOL(forcekillscripts, "forcekillscripts") // [JM] Force kill scripts on thing death. (MF7_NOKILLSCRIPTS overrides.)
 
+		// [AK] Forces actors to trigger GAMEEVENT_ACTOR_SPAWNED or GAMEVENT_ACTOR_DAMAGED unless they
+		// enabled the STFL_NOSPAWNEVENTSCRIPT or STFL_NODAMAGEEVENTSCRIPT flags respectively.
+		GAMEINFOKEY_BOOL(bForceSpawnEventScripts, "forcespawneventscripts")
+		GAMEINFOKEY_BOOL(bForceDamageEventScripts, "forcedamageeventscripts")
+
+		// [TRSR] Allows the triggering of GAMEEVENT_DOMINATION_CONTEST.
+		GAMEINFOKEY_BOOL(bAllowDominationContestScripts, "allowdominationcontestscripts")
+
 		else
 		{
 			// ignore unkown keys.

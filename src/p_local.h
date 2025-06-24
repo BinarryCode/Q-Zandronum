@@ -504,6 +504,8 @@ enum	// P_AimLineAttack flags
 	ALF_CHECKNONSHOOTABLE = 4,
 	ALF_CHECKCONVERSATION = 8,
 	ALF_NOFRIENDS = 16,
+	// [AK] Forces allies to be checked, even when sv_shootthroughallies is enabled.
+	ALF_FORCEALLYCHECK = 32,
 };
 
 enum	// P_LineAttack flags

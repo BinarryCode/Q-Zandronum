@@ -939,6 +939,7 @@ void	PLAYER_LeavesGame( const ULONG ulPlayer );
 void	PLAYER_ClearEnemySoundFields( const ULONG ulPlayer );
 bool	PLAYER_NameUsed( const FString &Name, const ULONG ulIgnorePlayer = MAXPLAYERS );
 FString	PLAYER_GenerateUniqueName( void );
+bool	PLAYER_CannotAffectAllyWith( AActor *pActor1, AActor *pActor2, AActor *pInflictor, int flag );
 
 void P_CheckPlayerSprite(AActor *mo, int &spritenum, fixed_t &scalex, fixed_t &scaley);
 

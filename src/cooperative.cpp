@@ -192,10 +192,10 @@ void COOP_SpawnVoodooDollsForPlayerIfNecessary ( const ULONG ulPlayer, const boo
 		// P_SpawnPlayer won't spawn anything for a player not in game, therefore we need to check if pDoll is NULL.
 		if ( pDoll )
 		{
-			pDoll->ulSTFlags |= STFL_LEVELSPAWNED;
+			pDoll->STFlags |= STFL_LEVELSPAWNED;
 
 			// [BB] The clients will not spawn the doll, so mark it accordingly and free it's network ID.
-			pDoll->ulNetworkFlags |= NETFL_SERVERSIDEONLY;
+			pDoll->NetworkFlags |= NETFL_SERVERSIDEONLY;
 			g_NetIDList.freeID ( pDoll->lNetID );
 			pDoll->lNetID = -1;
 

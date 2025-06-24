@@ -118,6 +118,7 @@
 #include "decallib.h"
 #include "network/servercommands.h"
 #include "am_map.h"
+#include "menu/menu.h"
 #include "maprotation.h"
 
 //*****************************************************************************
@@ -272,6 +273,13 @@ static	int				g_lLatestServerGametic = 0;
 
 // [TP] Client's understanding of the account names of players.
 static FString				g_PlayerAccountNames[MAXPLAYERS];
+
+// [TP] Do we have RCON access to the server?
+static	bool				g_HasRCONAccess = false;
+
+// [AK] We are in the process of gaining RCON access to the server.
+static  bool				g_GainingRCONAccess = false;
+
 
 //*****************************************************************************
 //	FUNCTIONS
@@ -1457,6 +1465,44 @@ void CLIENT_ProcessCommand( LONG lCommand, BYTESTREAM_s *pByteStream )
 				}
 				break;
 
+			// [TP]
+			case SVC2_RCONACCESS:
+				if ( NETWORK_ReadByte( pByteStream) )
+				{
+					if ( CLIENT_HasRCONAccess() == false && CLIENT_GainingRCONAccess() == false )
+					{
+						g_GainingRCONAccess = true;
+
+						// The server will send all server setting CVars that are not at default value. So, to ensure
+						// the rest are correct, we reset them now.
+						// NOTE: This is done before g_HasRCONAccess is set or the client would instead tell the server
+						// to reset the CVars.
+						for ( FBaseCVar* cvar = CVars; cvar; cvar = cvar->GetNext() )
+						{
+							// [AK] Ignore all flag and mask CVars, reset their respective flagsets instead.
+							if (( cvar->IsFlagCVar() ) || ( cvar->IsMaskCVar() ))
+								continue;
+
+							if ( cvar->IsServerInfo() )
+								cvar->ResetToDefault();
+						}
+
+						g_GainingRCONAccess = false;
+					}
+
+					g_HasRCONAccess = true;
+					M_RconAccessGranted();
+				}
+				else
+				{
+					// [AK] Close the server setup menu if we're still in it.
+					if ( M_InServerSetupMenu( ))
+						M_ClearMenus( );
+
+					g_HasRCONAccess = false;
+				}
+				break;
+
 			case SVC2_REPORTLUMPS:
 				{
 					CLIENTCOMMANDS_ReportLumps( );
@@ -1931,6 +1977,19 @@ void CLIENT_AdjustPredictionToServerSideConsolePlayerMove( fixed_t X, fixed_t Y,
 	players[consoleplayer].ServerXYZ[2] = Z;
 	CLIENT_PREDICT_PlayerTeleported( );
 }
+
+//*****************************************************************************
+bool CLIENT_HasRCONAccess()
+{
+	return g_HasRCONAccess;
+}
+
+//*****************************************************************************
+bool CLIENT_GainingRCONAccess()
+{
+	return g_GainingRCONAccess;
+}
+
 
 //*****************************************************************************
 //
@@ -4072,6 +4131,26 @@ void ServerCommands::PlayBounceSound::Execute()
 
 //*****************************************************************************
 //
+void ServerCommands::OpenMenu::Execute()
+{
+	// [AK] We shouldn't trust that the server sent us a valid name for the
+	// menu. We must double-check to make sure we can open it.
+	if ( M_IsValidMenu( menu ) == false )
+		return;
+
+	M_StartControlPanel( true );
+	M_SetMenu( menu, -1 );
+}
+
+//*****************************************************************************
+//
+void ServerCommands::CloseMenu::Execute()
+{
+	M_ClearMenus( );
+}
+
+//*****************************************************************************
+//
 void ServerCommands::SpawnThing::Execute()
 {
 	CLIENT_SpawnThing( type, x, y, z, id, 0, randomSeed );
@@ -4423,7 +4502,7 @@ void ServerCommands::SetThingFlags::Execute()
 		break;
 	case FLAGSET_FLAGSST:
 
-		actor->ulSTFlags = flags;
+		actor->STFlags = flags;
 		break;
 	case FLAGSET_MVFLAGS:
 

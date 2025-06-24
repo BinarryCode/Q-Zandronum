@@ -64,6 +64,7 @@
 #include "deathmatch.h"
 #include <cl_demo.h>
 #include <cl_commands.h>
+#include "cl_main.h"
 
 
 //
@@ -96,6 +97,9 @@ int				BackbuttonTime;
 fixed_t			BackbuttonAlpha;
 static bool		MenuEnabled = true;
 
+// [AK] Are we in the server setup menu?
+static DMenu	*ServerSetupMenu = NULL;
+static bool		ServerMenuEnabled = false;
 
 #define KEY_REPEAT_DELAY	(TICRATE*5/12)
 #define KEY_REPEAT_RATE		(3)
@@ -610,6 +614,18 @@ void M_SetMenu(FName menu, int param)
 				return;
 			}
 
+			// [AK] Prevent clients without RCON access from opening this menu.
+			if ( ld->mRequiresRCON )
+			{
+				if (( NETWORK_GetState() == NETSTATE_CLIENT ) && ( CLIENT_HasRCONAccess() == false ))
+				{
+					M_StartMessage( "You must have RCON access to use this menu.\n\npress a key.", 1 );
+					return;
+				}
+
+				ServerMenuEnabled = true;
+			}
+
 			DOptionMenu *newmenu = (DOptionMenu *)cls->CreateNew();
 			newmenu->Init(DMenu::CurrentMenu, ld);
 			M_ActivateMenu(newmenu);
@@ -912,6 +928,10 @@ void M_ClearMenus ()
 		DMenu::CurrentMenu->Destroy();
 		DMenu::CurrentMenu = NULL;
 	}
+	// [AK] If we're not in a menu, then we're obviously not in the server setup menu.
+	ServerSetupMenu = NULL;
+	ServerMenuEnabled = false;
+
 	D_SendPendingUserinfoChanges(); // [TP]
 	V_SetBorderNeedRefresh();
 	menuactive = MENU_Off;
@@ -941,6 +961,38 @@ void M_EnableMenu (bool on)
 	MenuEnabled = on;
 }
 
+//=============================================================================
+//
+// [AK] Returns true if we're in the server setup menu or its submenus.
+//
+//=============================================================================
+
+bool M_InServerSetupMenu (void)
+{
+	return ServerMenuEnabled;
+}
+
+//=============================================================================
+//
+// [AK] Returns true if the given name points to a valid menu, or false otherwise.
+//
+//=============================================================================
+
+bool M_IsValidMenu( const char *name )
+{
+	if (( name == nullptr ) || ( strlen( name ) == 0 ))
+		return false;
+
+	if ( MenuDescriptors.CheckKey( name ) == nullptr )
+	{
+		const PClass *menuClass = PClass::FindClass( name );
+
+		if (( menuClass == nullptr ) || ( menuClass->IsDescendantOf( RUNTIME_CLASS( DMenu )) == false ))
+			return false;
+	}
+
+	return true;
+}
 
 //=============================================================================
 //

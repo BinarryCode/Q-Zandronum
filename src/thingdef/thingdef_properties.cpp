@@ -1333,8 +1333,8 @@ DEFINE_PROPERTY(clearflags, 0, Actor)
 	defaults->flags2 &= MF2_ARGSDEFINED;	// this flag must not be cleared
 
 	// [BC] Also zero out ST's flags.
-	defaults->ulSTFlags = 0;
-	defaults->ulNetworkFlags = 0;
+	defaults->STFlags = 0;
+	defaults->NetworkFlags = 0;
 }
 
 //==========================================================================
@@ -1388,7 +1388,7 @@ DEFINE_PROPERTY(designatedteam, I, Actor)
 DEFINE_PROPERTY(limitedtoteam, I, Actor)
 {
 	PROP_INT_PARM(i, 0);
-	defaults->ulLimitedToTeam=i+1;
+	defaults->LimitedToTeam=i+1;
 }
 
 //==========================================================================

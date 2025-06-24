@@ -422,5 +422,7 @@ void	SERVERCOMMANDS_SyncMapRotation( ULONG ulPlayerExtra = MAXPLAYERS, ServerCom
 void	SERVERCOMMANDS_AddToMapRotation( const char *pszMapName, int position, ULONG ulPlayerExtra = MAXPLAYERS, ServerCommandFlags flags = 0 );
 void	SERVERCOMMANDS_DelFromMapRotation( const char *pszMapName, bool bClear = false, ULONG ulPlayerExtra = MAXPLAYERS, ServerCommandFlags flags = 0 );
 void	SERVERCOMMANDS_UpdatePlayersCount ( ULONG ulPlayerExtra = MAXPLAYERS, ServerCommandFlags flags = 0 );
+void	SERVERCOMMANDS_OpenMenu( const unsigned int player, const char *menuName );
+void	SERVERCOMMANDS_CloseMenu( const unsigned int player );
 
 #endif	// __SV_COMMANDS_H__

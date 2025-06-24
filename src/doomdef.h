@@ -390,6 +390,30 @@ enum
 	// but an actor is standing on it's edge so that actor's center is in the air.
 	// The special won't activate in that case, but with this flag it will.
 	ZADF_ELEVATED_SPECIAL_FIX = 1 << 22,
+
+	// [AK] Allows players to fire hitscans and projectiles through teammates.
+	ZADF_SHOOT_THROUGH_ALLIES = 1 << 23,
+
+	// [AK] Players aren't pushed by attacks caused by their teammates (e.g. BFG tracers).
+	ZADF_DONT_PUSH_ALLIES = 1 << 24,
+
+	// [AK] If enabled, the join queue is cleared between level changes.
+	ZADF_DONT_KEEP_JOIN_QUEUE = 1 << 25,
+
+	// [JS] Players can spy other players' stats in PVP gamemodes.
+	ZADF_DONT_HIDE_STATS = 1 << 26,
+
+	// [AK] Prevents player colors from being overriden.
+	ZADF_DONT_OVERRIDE_PLAYER_COLORS = 1 << 27,
+
+	// [AK] Teleport fog won't be spawned when a player does.
+	ZADF_NO_SPAWN_TELEFOG = 1 << 28,
+
+	// [AK] Ally icons won't appear over a player's head.
+	ZADF_NO_ALLY_ICONS = 1 << 29,
+
+	// [AK] Enemy icons won't appear over a player's head.
+	ZADF_NO_ENEMY_ICONS = 1 << 30,
 };
 
 // [RH] Compatibility flags.
@@ -504,6 +528,9 @@ enum
 
 	// [geNia] Enable predicting Decorate and ACS functions on clients
 	ZACOMPATF_PREDICT_FUNCTIONS = 1 << 27,
+
+	// [Binary] This is for MY use case.
+	ZACOMPATF_CLIENTBUTTONINFO		= 1 << 28,
 };
 
 // Emulate old bugs for select maps. These are not exposed by a cvar

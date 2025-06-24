@@ -108,8 +108,8 @@ bool NETWORK_ShouldActorNotBeSpawned ( const AActor *pSpawner, const PClass *pSp
 		return true;
 
 	bool bSpawnOnClient = ( bForceClientSide
-	                        || ( pSpawner && ( pSpawner->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
-	                        || ( GetDefaultByType( pSpawnType )->ulNetworkFlags & NETFL_CLIENTSIDEONLY )
+	                        || ( pSpawner && ( pSpawner->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	                        || ( GetDefaultByType( pSpawnType )->NetworkFlags & NETFL_CLIENTSIDEONLY )
 	                      );
 
 	// [BB] The server doesn't spawn client side only things.
@@ -883,7 +883,7 @@ void DoJumpIfInventory(AActor * owner, DECLARE_PARAMINFO)
 	{
 		if ( NETWORK_InClientMode() )
 		{
-			if ((( owner->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) == false ) &&
+			if ((( owner->NetworkFlags & NETFL_CLIENTSIDEONLY ) == false ) &&
 				(( owner->player == NULL ) || (( owner->player - players ) != consoleplayer )))
 			{
 				return;
@@ -1090,7 +1090,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_CallSpecial)
 	// [BC] Don't do this in client mode.
 	if ( NETWORK_InClientMode() )
 	{
-		bool isAllowedOnClient = !!( self->ulNetworkFlags & NETFL_CLIENTSIDEONLY );
+		bool isAllowedOnClient = !!( self->NetworkFlags & NETFL_CLIENTSIDEONLY );
 		if ( !isAllowedOnClient && ( zacompatflags & ZACOMPATF_PREDICT_FUNCTIONS ) )
 		{
 			isAllowedOnClient =
@@ -1277,7 +1277,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_CustomMissile)
 				// [BB] The client did the spawning, so this has to be a client side only actor.
 				// Needs to be done regardless of whether the spawn was successful.
 				if ( NETWORK_InClientMode() )
-					missile->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+					missile->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 				// [BC] If we're the server, tell clients to spawn the missile.
 				else if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 					UNLAGGED_UnlagAndReplicateMissile( self, missile, !!(flags & CMF_SKIPOWNER), !!(flags & CMF_NOUNLAGGED), !!(flags & CMF_UNLAGDEATH) );
@@ -1951,7 +1951,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_RailAttack)
 	// [geNia] Unless clientside functions are allowed
 	// [Spleen] Railgun is handled by the server unless unlagged
 	if ( !NETWORK_ClientsideFunctionsAllowedOrIsServer( self ) && !UNLAGGED_DrawRailClientside( self )
-		&& !( self->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+		&& !( self->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 		return;
 
 	angle_t angle;
@@ -2595,7 +2595,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_SpawnItem)
 		}
 		// [BB] The client did the spawning, so this has to be a client side only actor.
 		else if ( NETWORK_InClientMode() )
-			mo->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			mo->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 	}
 	ACTION_SET_RESULT(res);	// for an inventory item's use state
 }
@@ -2718,7 +2718,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_SpawnItemEx)
 		}
 		mo->angle = Angle;
 
-		if ( !( flags & SXF_FORCESERVERSIDE ) && !( mo->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+		if ( !( flags & SXF_FORCESERVERSIDE ) && !( mo->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 		{
 			if ( sv_showactorrandom )
 				Printf("Checking random for \"%s\" in \"%s\" : %d\n", self->GetClass()->TypeName.GetChars( ), "A_SpawnItemEx", self->actorRandom());
@@ -2728,7 +2728,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_SpawnItemEx)
 		// [BC] Flag this actor as being client-spawned.
 		if ( NETWORK_InClientMode() )
 		{
-			mo->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+			mo->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 		}
 
 		// [BB] If we're the server and the spawn was not blocked, tell clients to spawn the item
@@ -2801,7 +2801,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_ThrowGrenade)
 
 	// [BC] Weapons are handled by the server.
 	// [geNia] Unless clientside functions are allowed
-	if ( NETWORK_InClientMode() && ( ( self->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) || !NETWORK_ClientsideFunctionsAllowed( self ) || ( flags & TGR_FORCESERVERSIDE ) ) )
+	if ( NETWORK_InClientMode() && ( ( self->NetworkFlags & NETFL_CLIENTSIDEONLY ) || !NETWORK_ClientsideFunctionsAllowed( self ) || ( flags & TGR_FORCESERVERSIDE ) ) )
 	{
 		return;
 	}
@@ -3317,7 +3317,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_SpawnDebris)
 			if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 				SERVERCOMMANDS_SpawnThing( mo );
 			else if ( NETWORK_InClientMode() )
-				mo->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+				mo->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 			if (transfer_translation)
 			{
@@ -3364,7 +3364,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_CheckSight)
 	// [Dusk] If the actor does NOT have CLIENTSIDEONLY, the client does nothing.
 	if ( NETWORK_InClientMode() )
 	{
-		if ( !( self->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) ||
+		if ( !( self->NetworkFlags & NETFL_CLIENTSIDEONLY ) ||
 			P_CheckSight( players[consoleplayer].camera, self, SF_IGNOREVISIBILITY ) )
 		{
 			return;
@@ -3666,7 +3666,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_KillSiblings)
 	// [BB] This is handled server-side.
 	if ( NETWORK_InClientMode() )
 	{
-		if (( self->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) == false )
+		if (( self->NetworkFlags & NETFL_CLIENTSIDEONLY ) == false )
 			return;
 	}
 
@@ -3935,7 +3935,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_Respawn)
 			SERVERCOMMANDS_SpawnThing( self );
 			SERVERCOMMANDS_SetThingAngle( self );
 			// [BB] Since the clients just spawned this actor again, be sure to remove this flag.
-			self ->ulNetworkFlags &= ~NETFL_DESTROYED_ON_CLIENT;
+			self ->NetworkFlags &= ~NETFL_DESTROYED_ON_CLIENT;
 		}
 
 		if (flags & RSF_FOG)
@@ -4782,7 +4782,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_ChangeFlag)
 					flagset = FLAGSET_FLAGS7;
 				else if ( flagp == &self->flags8 )
 					flagset = FLAGSET_FLAGS8;
-				else if ( flagp == &self->ulSTFlags )
+				else if ( flagp == &self->STFlags )
 					flagset = FLAGSET_FLAGSST;
 				else if ( flagp == &self->mvFlags)
 					flagset = FLAGSET_MVFLAGS;

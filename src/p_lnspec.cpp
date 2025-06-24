@@ -129,7 +129,7 @@ int GetPlayerNumToSkip(AActor *it, bool isFromAcs, bool isFromDecorate)
 	if (
 		( isFromAcs && ( GetNetworkReplicationFlags() & NETREP_SKIPOWNER ) )
 		||
-		( isFromDecorate && ( zacompatflags & ZACOMPATF_PREDICT_FUNCTIONS ) && ( it->ulNetworkFlags & NETFL_SKIPOWNER ) )
+		( isFromDecorate && ( zacompatflags & ZACOMPATF_PREDICT_FUNCTIONS ) && ( it->NetworkFlags & NETFL_SKIPOWNER ) )
 	)
 		return NETWORK_GetActorsOwnerPlayer( it ) - players;
 

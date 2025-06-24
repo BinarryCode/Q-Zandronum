@@ -637,6 +637,7 @@ bool		BOTS_IsValidName( char *pszName );
 ULONG		BOTS_FindFreePlayerSlot( void );
 void		BOTS_RemoveBot( ULONG usPlayerIdx, bool bExitMsg );
 void		BOTS_RemoveAllBots( bool bExitMsg );
+bool BOTS_RemoveRandomBot( void );
 void		BOTS_ResetCyclesCounter( void );
 bool		BOTS_IsPathObstructed( fixed_t Distance, AActor *pSource );
 bool		BOTS_IsVisible( AActor *pActor1, AActor *pActor2 );

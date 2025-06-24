@@ -171,6 +171,24 @@ enum CLIENTSTATE_e
 };
 
 //*****************************************************************************
+//
+// [SB] Reasons a player disconnected from the server. Intended for GAMEEVENT_PLAYERLEAVESSERVER.
+//
+enum LEAVEREASON_e
+{
+	// Disconnected of their own accord.
+	LEAVEREASON_LEFT,
+	// Kicked by a server admin.
+	LEAVEREASON_KICKED,
+	// An error occurred.
+	LEAVEREASON_ERROR,
+	// The client timed out.
+	LEAVEREASON_TIMEOUT,
+	// The client is re-connecting, for example the map command was used.
+	LEAVEREASON_RECONNECT,
+};
+
+//*****************************************************************************
 struct STORED_QUERY_IP_s
 {
 	// Address of the person who queried us.
@@ -426,7 +444,7 @@ void		SERVER_SendFullUpdate( ULONG ulClient );
 void		SERVER_WriteCommands( void );
 bool		SERVER_IsValidClient( ULONG ulClient );
 void		SERVER_AdjustPlayersReactiontime( const ULONG ulPlayer );
-void		SERVER_DisconnectClient( ULONG ulClient, bool bBroadcast, bool bSaveInfo );
+void		SERVER_DisconnectClient( ULONG ulClient, bool bBroadcast, bool bSaveInfo, LEAVEREASON_e reason );
 void		SERVER_SendHeartBeat( void );
 void		STACK_ARGS SERVER_Printf( ULONG ulPrintLevel, const char *pszString, ... ) GCCPRINTF(2,3);
 void		STACK_ARGS SERVER_Printf( const char *pszString, ... ) GCCPRINTF(1,2);

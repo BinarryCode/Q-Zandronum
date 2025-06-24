@@ -1093,6 +1093,11 @@ bool PIT_CheckThing(AActor *thing, FCheckPosition &tm)
 					return true;
 		}
 
+		// [AK] Check if this projectile was shot by a player and can pass through their
+		// teammates if ZADF_SHOOT_THROUGH_ALLIES is enabled.
+		if ( PLAYER_CannotAffectAllyWith( tm.thing->target, thing, tm.thing, ZADF_SHOOT_THROUGH_ALLIES ))
+			return true;
+
 		// Check for rippers passing through corpses
 		if ((thing->flags & MF_CORPSE) && (tm.thing->flags2 & MF2_RIP) && !(thing->flags & MF_SHOOTABLE))
 		{
@@ -1365,7 +1370,7 @@ bool PIT_CheckThing(AActor *thing, FCheckPosition &tm)
 			// we check against the number of teams that have starts on the map to guess how many teams
 			// the mapper thought were available. Note: This is not going to work properly, if the map
 			// has starts for teams 0 and 2, but not for team 1 for example.
-			if (( thing->ulSTFlags & STFL_SCOREPILLAR ) &&
+			if (( thing->STFlags & STFL_SCOREPILLAR ) &&
 				( TEAM_FindOpposingTeamsItemInPlayersInventory ( tm.thing->player ) ) &&
 				( thing->args[0] == static_cast<int> (TEAM_GetNumTeamsWithStarts()) || static_cast<signed>( tm.thing->player->ulTeam ) == thing->args[0] ) &&
 				( thing->args[1] > 0 ))
@@ -2146,7 +2151,7 @@ bool P_TryMove(AActor *thing, fixed_t x, fixed_t y,
 	thing->y = y;
 
 	// [BC] Flag this thing as having moved.
-	thing->ulSTFlags |= STFL_POSITIONCHANGED;
+	thing->STFlags |= STFL_POSITIONCHANGED;
 
 	thing->LinkToWorld();
 
@@ -3726,7 +3731,7 @@ bool P_BounceActor(AActor *mo, AActor *BlockingMobj, bool ontop)
 			SERVERCOMMANDS_PlayBounceSound( mo, true );
 			// [BB] We need to inform the clients about the new velocity and sync the position,
 			// but can only do this after calling P_ZMovement. Mark the actor accordingly.
-			mo->ulNetworkFlags |= NETFL_BOUNCED_OFF_ACTOR;
+			mo->NetworkFlags |= NETFL_BOUNCED_OFF_ACTOR;
 		}
 
 		return true;
@@ -4052,6 +4057,11 @@ void aim_t::AimTraverse(fixed_t startx, fixed_t starty, fixed_t endx, fixed_t en
 			}
 		}
 
+		// [AK] Unless we forced the aim to check for allies, we also need to check if the
+		// shooter shouldn't pick the target, in case sv_shootthroughallies is enabled.
+		if (!( flags & ALF_FORCEALLYCHECK ) && ( PLAYER_CannotAffectAllyWith( shootthing, th, NULL, ZADF_SHOOT_THROUGH_ALLIES )))
+			continue;
+
 		if ((flags & ALF_NOFRIENDS) && th->IsFriend(friender))
 		{
 			continue;
@@ -4232,6 +4242,10 @@ struct Origin
 	bool hitGhosts;
 	bool hitSameSpecies;
 	bool hitSameTeam;
+
+	// [AK] Added hitscan puff and check for P_LinePickActor.
+	AActor *pPuff;
+	bool bIsLinePick;
 };
 
 static ETraceStatus CheckForActor(FTraceResults &res, void *userdata)
@@ -4258,6 +4272,13 @@ static ETraceStatus CheckForActor(FTraceResults &res, void *userdata)
 		return TRACE_Skip;
 	}
 	if (data->hitGhosts && res.Actor->flags3 & MF3_GHOST)
+	{
+		return TRACE_Skip;
+	}
+
+	// [AK] Check if this player can shoot through their teammates if ZADF_SHOOT_THROUGH_ALLIES is enabled.
+	// Ignore this if this was triggered by P_LinePickActor.
+	if (( !data->bIsLinePick ) && ( PLAYER_CannotAffectAllyWith( data->Caller, res.Actor, data->pPuff, ZADF_SHOOT_THROUGH_ALLIES )))
 	{
 		return TRACE_Skip;
 	}
@@ -4348,6 +4369,10 @@ AActor *P_LineAttack(AActor *t1, angle_t angle, fixed_t distance,
 
 	// We need to check the defaults of the replacement here
 	AActor *puffDefaults = GetDefaultByType(pufftype->GetReplacement());
+
+	// [AK] Remember the puff actor that is supposed to spawn with this hitscan.
+	TData.pPuff = puffDefaults;
+	TData.bIsLinePick = false;
 
 	TData.hitGhosts = (t1->player != NULL &&
 		t1->player->ReadyWeapon != NULL &&
@@ -4882,6 +4907,10 @@ struct RailData
 	TArray<SRailHit> RailHits;
 	bool StopAtOne;
 	bool StopAtInvul;
+
+	// [AK] Added caller and hitscan puff actor pointers.
+	AActor *pCaller;
+	AActor *pPuff;
 };
 
 static ETraceStatus ProcessRailHit(FTraceResults &res, void *userdata)
@@ -4890,6 +4919,12 @@ static ETraceStatus ProcessRailHit(FTraceResults &res, void *userdata)
 	if (res.HitType != TRACE_HitActor)
 	{
 		return TRACE_Stop;
+	}
+
+	// [AK] Check if this player can shoot through their teammates if ZADF_SHOOT_THROUGH_ALLIES is enabled.
+	if ( PLAYER_CannotAffectAllyWith( data->pCaller, res.Actor, data->pPuff, ZADF_SHOOT_THROUGH_ALLIES ))
+	{
+		return TRACE_Skip;
 	}
 
 	// Invulnerable things completely block the shot
@@ -5020,6 +5055,10 @@ void P_RailAttack(AActor *source, int damage, int offset_xy, fixed_t offset_z, i
 	RailData rail_data;
 	rail_data.StopAtOne = !!(railflags & RAF_NOPIERCE);
 	rail_data.StopAtInvul = (puffDefaults->flags3 & MF3_FOILINVUL) ? false : true;
+
+	// [AK] Remember the actor who fired the rail and the puff actor that is supposed to spawn.
+	rail_data.pCaller = source;
+	rail_data.pPuff = puffDefaults;
 
 	Trace(x1, y1, shootz, source->Sector, vx, vy, vz,
 		distance, MF_SHOOTABLE, ML_BLOCKEVERYTHING, source, trace,
@@ -5584,7 +5623,7 @@ void P_UseItems( player_t *pPlayer )
 		// Don't try to trigger sector actions in client mode.
 		if (( NETWORK_InClientMode() == false ) &&
 			( linetarget->special ) &&
-			( linetarget->ulSTFlags & STFL_USESPECIAL ))
+			( linetarget->STFlags & STFL_USESPECIAL ))
 		{
 			LineSpecials[linetarget->special]( NULL, usething, false, linetarget->args[0],
 									   linetarget->args[1], linetarget->args[2],
@@ -6536,7 +6575,7 @@ void PIT_FloorDrop(AActor *thing, FChangePosition *cpos)
 		}
 
 		// [BC] Mark this thing as having moved.
-		thing->ulSTFlags |= STFL_POSITIONCHANGED;
+		thing->STFlags |= STFL_POSITIONCHANGED;
 	}
 	else if ((thing->z != oldfloorz && !(thing->flags & MF_NOLIFTDROP)))
 	{
@@ -6576,7 +6615,7 @@ void PIT_FloorRaise(AActor *thing, FChangePosition *cpos)
 		thing->z = thing->floorz;
 
 		// [BC] Mark this thing as having moved.
-		thing->ulSTFlags |= STFL_POSITIONCHANGED;
+		thing->STFlags |= STFL_POSITIONCHANGED;
 	}
 	else
 	{
@@ -6586,7 +6625,7 @@ void PIT_FloorRaise(AActor *thing, FChangePosition *cpos)
 			thing->z = thing->z - oldfloorz + thing->floorz;
 
 			// [BC/BB] Mark this thing as having moved.
-			thing->ulSTFlags |= STFL_POSITIONCHANGED;
+			thing->STFlags |= STFL_POSITIONCHANGED;
 		}
 		else return;
 	}
@@ -6638,7 +6677,7 @@ void PIT_CeilingLower(AActor *thing, FChangePosition *cpos)
 		}
 
 		// [BC] Mark this thing as having moved.
-		thing->ulSTFlags |= STFL_POSITIONCHANGED;
+		thing->STFlags |= STFL_POSITIONCHANGED;
 
 		switch (P_PushDown(thing, cpos))
 		{
@@ -6685,7 +6724,7 @@ void PIT_CeilingRaise(AActor *thing, FChangePosition *cpos)
 		P_CheckFakeFloorTriggers(thing, oldz);
 
 		// [BC] Mark this thing as having moved.
-		thing->ulSTFlags |= STFL_POSITIONCHANGED;
+		thing->STFlags |= STFL_POSITIONCHANGED;
 	}
 	else if ((thing->flags2 & MF2_PASSMOBJ) && !isgood && thing->z + thing->height < thing->ceilingz)
 	{
@@ -6696,7 +6735,7 @@ void PIT_CeilingRaise(AActor *thing, FChangePosition *cpos)
 				onmobj->z + onmobj->height);
 
 			// [BC] Mark this thing as having moved.
-			thing->ulSTFlags |= STFL_POSITIONCHANGED;
+			thing->STFlags |= STFL_POSITIONCHANGED;
 		}
 	}
 }

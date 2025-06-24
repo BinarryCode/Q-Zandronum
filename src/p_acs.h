@@ -1103,6 +1103,12 @@ protected:
 	int				InModuleScriptNumber;
 	FString			activefontname; // [TP]
 
+	// [AK] Pointers to the source, inflictor, and target actors that triggered a GAMEEVENT_ACTOR_DAMAGED or
+	// GAMEEVENT_ACTOR_DAMAGED_PREMOD event. In all other cases, these pointers should be equal to NULL.
+	TObjPtr<AActor>	pDamageSource;
+	TObjPtr<AActor> pDamageInflictor;
+	TObjPtr<AActor> pDamageTarget;
+
 	void Link ();
 	void Unlink ();
 	void PutLast ();
@@ -1141,6 +1147,11 @@ private:
 
 	// [BB/TP] The client needs to call DLevelScript::ReplaceTextures.
 	friend class ServerCommands::ReplaceTextures;
+	// [CHECKMELATER]
+	// [AK] We need to access protected variables from this class when we tell the clients to print a HUD message.
+	//friend void SERVERCOMMANDS_PrintACSHUDMessage( DLevelScript *pScript, const char *pszString, float fX, float fY, LONG lType, LONG lColor, float fHoldTime, float fInTime, float fOutTime, fixed_t Alpha, LONG lID, ULONG ulPlayerExtra, ServerCommandFlags flags );
+	// [AK] If the current running script is a GAMEEVENT_ACTOR_DAMAGED or GAMEEVENT_ACTOR_DAMAGED_PREMOD event, this returns a pointer to the source, inflictor, or target actor.
+	friend AActor *ACS_GetScriptDamagePointers( unsigned int pointer );
 };
 
 class DACSThinker : public DThinker
@@ -1195,12 +1206,15 @@ FArchive &operator<< (FArchive &arc, acsdefered_t *&defer);
 
 void	ACS_ClearLumpHandles( void ); // [AK]
 bool	ACS_IsCalledFromConsoleCommand( void );
+bool	ACS_IsEventScript( int script ); // [AK]
+bool	ACS_IsCalledFromScript( void ); // [AK]
 bool	ACS_IsScriptClientSide( int script );
 bool	ACS_IsScriptClientSide( const ScriptPtr *pScriptData );
 bool	ACS_IsScriptPukeable( ULONG ulScript );
 int		ACS_GetTranslationIndex( FRemapTable *pTranslation );
 int		ACS_PushAndReturnDynamicString ( const FString &Work );
 bool	ACS_ExistsScript( int script );
+AActor	*ACS_GetScriptDamagePointers( unsigned int pointer ); // [AK]
 
 // [BB] Export DoGiveInv
 bool	DoGiveInv(AActor *actor, const PClass *info, int amount, player_t* ownerPlayer = NULL);

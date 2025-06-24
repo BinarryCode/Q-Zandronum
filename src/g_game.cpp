@@ -2337,7 +2337,7 @@ bool G_CheckSpot (int playernum, FPlayerStart *mthing)
 
 	// [EP] Spectator flags must be disabled for the position checking, too.
 	DWORD oldflags2 = players[playernum].mo->flags2;
-	if ( players[playernum].mo->ulSTFlags & STFL_OBSOLETE_SPECTATOR_BODY )
+	if ( players[playernum].mo->STFlags & STFL_OBSOLETE_SPECTATOR_BODY )
 		players[playernum].mo->flags2 &= ~MF2_THRUACTORS;
 
 	players[playernum].mo->flags |=  MF_SOLID;
@@ -2910,12 +2910,12 @@ void G_DoReborn (int playernum, bool freshbot)
 		{
 			// [BB] Skulltag has its own body queue. If G_QueueBody is used, the
 			// STFL_OBSOLETE_SPECTATOR_BODY code below has to be adapted.
-			if ( !( players[playernum].mo->ulSTFlags & STFL_OBSOLETE_SPECTATOR_BODY ) )
+			if ( !( players[playernum].mo->STFlags & STFL_OBSOLETE_SPECTATOR_BODY ) )
 				G_QueueBody (players[playernum].mo);
 			players[playernum].mo->player = NULL;
 		}
 		// [BB] The old body is not a corpse, but an obsolete spectator body. Remove it.
-		if ( pOldBody && ( pOldBody->ulSTFlags & STFL_OBSOLETE_SPECTATOR_BODY ) )
+		if ( pOldBody && ( pOldBody->STFlags & STFL_OBSOLETE_SPECTATOR_BODY ) )
 		{
 			if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 				SERVERCOMMANDS_DestroyThing( pOldBody );
@@ -3348,6 +3348,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 	fixed_t							Y;
 	fixed_t							Z;
 	TThinkerIterator<AActor>		ActorIterator;
+	TArray<AActor *>				untouchedActors;
 
 	// Unload decals.
 	DECAL_ClearDecals( );
@@ -3403,7 +3404,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 		// [BB] Remove all CLIENTSIDEONLY actors not spawned by the map.
 		while (( pActor = ActorIterator.Next( )) != NULL )
 		{
-			if ( ( ( pActor->ulSTFlags & STFL_LEVELSPAWNED ) == false ) && ( pActor->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+			if ( ( ( pActor->STFlags & STFL_LEVELSPAWNED ) == false ) && ( pActor->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 			{
 				// [BB] This caused problems on the non-client code, so until we discover what
 				// exactly happnes there, just do the same workaround here.
@@ -3415,7 +3416,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 			// [BB] ALLOWCLIENTSPAWN actors spawned by the map are supposed to stay untouched. Some mods ignore
 			// this restriction. To work around some problems caused by this, we reset their args. In particular,
 			// this is helpful for DynamicLight tricks.
-			if ( ( pActor->ulSTFlags & STFL_LEVELSPAWNED ) && ( pActor->ulNetworkFlags & NETFL_ALLOWCLIENTSPAWN ) )
+			if ( ( pActor->STFlags & STFL_LEVELSPAWNED ) && ( pActor->NetworkFlags & NETFL_ALLOWCLIENTSPAWN ) )
 				for ( int i = 0; i < 5; ++i )
 					pActor->args[i] = pActor->SavedArgs[i];
 		}
@@ -3786,7 +3787,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 		if (( pActor->IsKindOf( RUNTIME_CLASS( AInventory ))) && 
 			( static_cast<AInventory *>( pActor )->Owner ))
 		{
-			if ( pActor->ulSTFlags & STFL_LEVELSPAWNED )
+			if ( pActor->STFlags & STFL_LEVELSPAWNED )
 			{
 				// Get the default information for this actor, so we can determine how to
 				// respawn it.
@@ -3835,7 +3836,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 				}
 				pNewActor->AddToHash( );
 
-				pNewActor->ulSTFlags |= STFL_LEVELSPAWNED;
+				pNewActor->STFlags |= STFL_LEVELSPAWNED;
 
 				// Handle the spawn flags of the item.
 				pNewActor->HandleSpawnFlags( );
@@ -3861,7 +3862,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 		}
 
 		// Destroy any actor not present when the map loaded.
-		if (( pActor->ulSTFlags & STFL_LEVELSPAWNED ) == false )
+		if (( pActor->STFlags & STFL_LEVELSPAWNED ) == false )
 		{
 			// If this is an item, decrement the total number of item on the level.
 			if ( pActor->flags & MF_COUNTITEM )
@@ -3883,7 +3884,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 		pActorInfo = pActor->GetDefault( );
 
 		// This item appears to be untouched; no need to respawn it.
-		if ((( pActor->ulSTFlags & STFL_POSITIONCHANGED ) == false ) &&
+		if ((( pActor->STFlags & STFL_POSITIONCHANGED ) == false ) &&
 			( pActor->state == pActor->InitialState ) &&
 			( GAME_DormantStatusMatchesOriginal( pActor )) &&
 			( pActor->health == pActorInfo->health ))
@@ -3906,6 +3907,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 				pActor->tid = pActor->SavedTID;
 				pActor->AddToHash();
 			}
+			untouchedActors.Push( pActor );
 			continue;
 		}
 
@@ -3990,7 +3992,7 @@ void GAME_ResetMap( bool bRunEnterScripts )
 			}
 
 			pNewActor->flags &= ~MF_DROPPED;
-			pNewActor->ulSTFlags |= STFL_LEVELSPAWNED;
+			pNewActor->STFlags |= STFL_LEVELSPAWNED;
 
 			// Handle the spawn flags of the item.
 			pNewActor->HandleSpawnFlags( );
@@ -4110,6 +4112,11 @@ void GAME_ResetMap( bool bRunEnterScripts )
 			}
 		}
 	}
+
+	// [AK] For any actors that weren't respawned, AActor::PostBeginPlay won't
+	// be executed and trigger GAMEEVENT_ACTOR_SPAWNED normally, so do it here.
+	for ( unsigned int i = 0; i < untouchedActors.Size( ); i++ )
+		GAMEMODE_HandleSpawnEvent( untouchedActors[i] );
 }
 
 //*****************************************************************************

@@ -106,6 +106,18 @@ typedef enum
 	GAMEEVENT_ROUND_STARTS,
 	GAMEEVENT_ROUND_ENDS,
 	GAMEEVENT_ROUND_ABORTED,
+	GAMEEVENT_CHAT,
+	GAMEEVENT_PLAYERCONNECT,
+	GAMEEVENT_ACTOR_SPAWNED,
+	GAMEEVENT_ACTOR_DAMAGED,
+	GAMEEVENT_ACTOR_DAMAGED_PREMOD,
+	GAMEEVENT_DOMINATION_CONTROL,
+	GAMEEVENT_DOMINATION_POINT,
+	GAMEEVENT_PLAYERLEAVESSERVER,
+	GAMEEVENT_LEVEL_INIT,
+	GAMEEVENT_JOINQUEUECHANGED,
+	GAMEEVENT_DOMINATION_PRECONTROL,
+	GAMEEVENT_DOMINATION_CONTEST,
 	GAMEEVENT_MAP_COMPLETE,
 } GAMEEVENT_e;
 
@@ -209,7 +221,11 @@ bool		GAMEMODE_IsSpectatorAllowedSpecial ( const int Special );
 bool		GAMEMODE_IsHandledSpecial ( AActor *Activator, int Special );
 GAMESTATE_e	GAMEMODE_GetState ( void );
 void		GAMEMODE_SetState ( GAMESTATE_e GameState );
-void		GAMEMODE_HandleEvent ( const GAMEEVENT_e Event, AActor *pActivator = NULL, const int DataOne = 0, const int DataTwo = 0 );
+LONG		GAMEMODE_HandleEvent ( const GAMEEVENT_e Event, AActor *pActivator = NULL, const int DataOne = 0, const int DataTwo = 0, const bool bRunNow = false, const int OverrideResult = 1 );
+void		GAMEMODE_HandleSpawnEvent( AActor *actor );
+bool		GAMEMODE_HandleDamageEvent ( AActor *target, AActor *inflictor, AActor *source, int &damage, FName mod, bool bBeforeArmor = false );
+LONG		GAMEMODE_GetEventResult ( void );
+void		GAMEMODE_SetEventResult ( LONG lResult );
 
 // [BB] This function doesn't really belong here. Find a better place for it.
 void		GAMEMODE_DisplayStandardMessage( const char *pszMessage, const bool bInformClients = false );

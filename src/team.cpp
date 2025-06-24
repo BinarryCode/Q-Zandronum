@@ -403,8 +403,8 @@ bool TEAM_UpdateSpecialItemOrigin( ULONG teamId )
 
 						// [BB] If we replace a map spawned item, the new item still needs to
 						// be considered map spawned. Otherwise it vanishes in a map reset.
-						if ( pItem->ulSTFlags & STFL_LEVELSPAWNED )
-							pNewSkull->ulSTFlags |= STFL_LEVELSPAWNED ;
+						if ( pItem->STFlags & STFL_LEVELSPAWNED )
+							pNewSkull->STFlags |= STFL_LEVELSPAWNED ;
 					}
 
 					Origin.x = pItem->x;
@@ -427,8 +427,8 @@ bool TEAM_UpdateSpecialItemOrigin( ULONG teamId )
 
 						// [BB] If we replace a map spawned item, the new item still needs to
 						// be considered map spawned. Otherwise it vanishes in a map reset.
-						if ( pItem->ulSTFlags & STFL_LEVELSPAWNED )
-							pNewSkull->ulSTFlags |= STFL_LEVELSPAWNED ;
+						if ( pItem->STFlags & STFL_LEVELSPAWNED )
+							pNewSkull->STFlags |= STFL_LEVELSPAWNED ;
 					}
 
 					Origin.x = pItem->x;
@@ -2183,7 +2183,7 @@ bool TEAM_IsActorAllowedForTeam( AActor *pActor, ULONG ulTeam )
 	if ( pActor == NULL )
 		return false;
 
-	return TEAM_CheckTeamRestriction( ulTeam, pActor->ulLimitedToTeam );
+	return TEAM_CheckTeamRestriction( ulTeam, pActor->LimitedToTeam );
 }
 
 //****************************************************************************

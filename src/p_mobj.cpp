@@ -375,12 +375,12 @@ void AActor::Serialize (FArchive &arc)
 	arc << ConversationRoot << Conversation;
 	
 	// [BB] Zandronum additions.
-	arc << ulLimitedToTeam // [BB]
+	arc << LimitedToTeam // [BB]
 		<< lFixedColormap // [BB]
 		// [BB] Before the snapshot is loaded, player bodies are spawned, which invalidates the old netIDs.
 		//<< lNetID // [BC] We need to archive this so that it's restored properly when going between maps in a hub.
-		<< ulSTFlags
-		<< ulNetworkFlags
+		<< STFlags
+		<< NetworkFlags
 		<< ulInvasionWave
 		<< pMonsterSpot
 		<< pPickupSpot
@@ -402,7 +402,7 @@ void AActor::Serialize (FArchive &arc)
 	if (arc.IsLoading ())
 	{
 		// [BB] If the the actor needs one, generate a new netID.
-		if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && !( ulNetworkFlags & NETFL_NONETID ) && !( ulNetworkFlags & NETFL_SERVERSIDEONLY ) )
+		if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && !( NetworkFlags & NETFL_NONETID ) && !( NetworkFlags & NETFL_SERVERSIDEONLY ) )
 		{
 			lNetID = g_NetIDList.getNewID( NULL );
 			g_NetIDList.useID ( lNetID, this );
@@ -630,7 +630,7 @@ void AActor::HideOrDestroyIfSafe ()
 	// that is level spawned, don't destroy it. Instead, put it in a temporary invisibile
 	// state.
 	if (( GAMEMODE_GetCurrentFlags() & GMF_MAPRESETS ) &&
-		( ulSTFlags & STFL_LEVELSPAWNED ) &&
+		( STFlags & STFL_LEVELSPAWNED ) &&
 		( NETWORK_ClientsideFunctionsAllowedOrIsServer( this ) ))
 	{
 		// [BB] Do any actor specific things that are necessary to properly hide this thing.
@@ -649,7 +649,7 @@ void AActor::HideOrDestroyIfSafe ()
 		SetState( RUNTIME_CLASS ( AInventory )->ActorInfo->FindState("HideIndefinitely") );
 
 		// [BB] Remember that this was hidden. These things sometimes have to be explicitly excluded, e.g. in CheckBossDeath.
-		ulSTFlags |= STFL_HIDDEN_INSTEAD_OF_DESTROYED;
+		STFlags |= STFL_HIDDEN_INSTEAD_OF_DESTROYED;
 	}
 	else
 		Destroy();
@@ -885,7 +885,7 @@ void AActor::DestroyAllInventory ()
 	{
 		AInventory *item = Inventory;
 		// [BC] In certain modes, we may need to keep this item around.
-		if (( item->ulSTFlags & STFL_LEVELSPAWNED ) &&
+		if (( item->STFlags & STFL_LEVELSPAWNED ) &&
 			( GAMEMODE_GetCurrentFlags() & GMF_MAPRESETS ))
 		{
 			item->HideIndefinitely( );
@@ -1482,7 +1482,7 @@ bool AActor::Grind(bool items)
 				// Whether or not this is intentional, if the clients spawn the gibs on
 				// their own, they have to mark them as CLIENTSIDEONLY.
 				if( NETWORK_InClientMode() )
-					gib->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+					gib->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 				PalEntry bloodcolor = GetBloodColor();
 				if (bloodcolor != 0)
@@ -1763,7 +1763,7 @@ void AActor::PlayBounceSound(bool onfloor)
 {
 	// [BB] Skulltag's old hacky bounce sound code. Should be removed eventually.
 	// [BC] Actors don't yet have a bounce sound, so this will have to be hacked for now.
-	if ( ulSTFlags & STFL_USESTBOUNCESOUND )
+	if ( STFlags & STFL_USESTBOUNCESOUND )
 	{
 		S_Sound( this, CHAN_VOICE, "weapons/grbnce", 1, ATTN_IDLE );
 		return;
@@ -2428,7 +2428,7 @@ fixed_t P_XYMovement (AActor *mo, fixed_t scrollx, fixed_t scrolly)
 						{	// Struck a player/creature
 						
 							// Potentially reward the player who shot this missile with an accuracy/precision medal.
-							if ((( mo->ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
+							if ((( mo->STFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
 							{
 								if ( mo->target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( mo ) )
 									PLAYER_StruckPlayer( mo->target->player );
@@ -2479,7 +2479,7 @@ fixed_t P_XYMovement (AActor *mo, fixed_t scrollx, fixed_t scrolly)
 
 					// [CK/BB] Inform the client about the reflection.
 					if ( NETWORK_GetState( ) == NETSTATE_SERVER )
-						mo->ulNetworkFlags |= NETFL_BOUNCED_OFF_ACTOR;
+						mo->NetworkFlags |= NETFL_BOUNCED_OFF_ACTOR;
 
 					return oldfloorz;
 				}
@@ -2508,7 +2508,7 @@ explode:
 					}
 
 					// Potentially reward the player who shot this missile with an accuracy/precision medal.
-					if ((( mo->ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
+					if ((( mo->STFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
 					{
 						if ( mo->target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( mo ) )
 							PLAYER_StruckPlayer( mo->target->player );
@@ -3209,7 +3209,7 @@ void P_ZMovement (AActor *mo, fixed_t oldfloorz)
 
 	// [BC] Mark this item as having moved.
 	if ( mo->z != oldz )
-		mo->ulSTFlags |= STFL_POSITIONCHANGED;
+		mo->STFlags |= STFL_POSITIONCHANGED;
 //
 // adjust height
 //
@@ -3336,7 +3336,7 @@ void P_ZMovement (AActor *mo, fixed_t oldfloorz)
 					P_HitFloor (mo);
 
 					// [BC] Potentially reward the player who shot this missile with an accuracy/precision medal.
-					if ((( mo->ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
+					if ((( mo->STFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
 					{
 						if ( mo->target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( mo ) )
 							PLAYER_StruckPlayer( mo->target->player );
@@ -3478,7 +3478,7 @@ void P_ZMovement (AActor *mo, fixed_t oldfloorz)
 				}
 
 				// [BC] Potentially reward the player who shot this missile with an accuracy/precision medal.
-				if ((( mo->ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
+				if ((( mo->STFlags & STFL_EXPLODEONDEATH ) == false ) && mo->target && mo->target->player )
 				{
 					if ( mo->target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( mo ) )
 						PLAYER_StruckPlayer( mo->target->player );
@@ -3495,11 +3495,11 @@ void P_ZMovement (AActor *mo, fixed_t oldfloorz)
 	P_CheckFor3DSectorEnter (mo);
 
 	// [TIHan/BB] If it's a missile that is bounceable and it bounced, send info to the client
-	if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( mo->ulNetworkFlags & NETFL_BOUNCED_OFF_ACTOR ) )
+	if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( mo->NetworkFlags & NETFL_BOUNCED_OFF_ACTOR ) )
 	{
 		SERVERCOMMANDS_MoveThing( mo, CM_XY|CM_Z|CM_VELXY|CM_VELZ|CM_ANGLE );
 		// [BB] Remove the mark, the syncing is done now.
-		mo->ulNetworkFlags &= ~NETFL_BOUNCED_OFF_ACTOR;
+		mo->NetworkFlags &= ~NETFL_BOUNCED_OFF_ACTOR;
 	}
 }
 
@@ -3744,8 +3744,8 @@ void P_NightmareRespawn (AActor *mobj)
 	// [BB] The new actor has to inherit the STFL_LEVELSPAWNED flag from the old one.
 	// Otherwise level spawned actors respawned by P_NightmareRespawn won't be restored
 	// during a call of GAME_ResetMap.
-	if ( mobj->ulSTFlags & STFL_LEVELSPAWNED )
-		mo->ulSTFlags |= STFL_LEVELSPAWNED;
+	if ( mobj->STFlags & STFL_LEVELSPAWNED )
+		mo->STFlags |= STFL_LEVELSPAWNED;
 
 	// [BC] If we're the server, tell clients to spawn the thing.
 	if ( NETWORK_GetState( ) == NETSTATE_SERVER )
@@ -5426,14 +5426,14 @@ AActor *AActor::StaticSpawn (const PClass *type, fixed_t ix, fixed_t iy, fixed_t
 
 	actor->ownerPlayer = ownerPlayer;
 
-	if ( skipOwner && !( actor->ulNetworkFlags & NETFL_SERVERNETID ) )
-		actor->ulNetworkFlags |= NETFL_SKIPOWNER;
+	if ( skipOwner && !( actor->NetworkFlags & NETFL_SERVERNETID ) )
+		actor->NetworkFlags |= NETFL_SKIPOWNER;
 
 	// Forget ownerPlayer to properly assign lNetID
-	if ( actor->ulNetworkFlags & NETFL_SERVERNETID )
+	if ( actor->NetworkFlags & NETFL_SERVERNETID )
 		ownerPlayer = NULL;
 
-	if ( ( ( actor->ulNetworkFlags & NETFL_NONETID ) == false ) && ( ( actor->ulNetworkFlags & NETFL_SERVERSIDEONLY ) == false )
+	if ( ( ( actor->NetworkFlags & NETFL_NONETID ) == false ) && ( ( actor->NetworkFlags & NETFL_SERVERSIDEONLY ) == false )
 		&& ( ( NETWORK_GetState( ) == NETSTATE_SERVER )
 			|| ( NETWORK_InClientMode( ) && NETWORK_ClientsideFunctionsAllowed( ownerPlayer ) && ( ownerPlayer - players == consoleplayer ) ) ) )
 	{
@@ -5509,7 +5509,7 @@ void AActor::LevelSpawned ()
 	HandleSpawnFlags ();
 
 	// [BC] Mark this item as having been spawned on the map.
-	ulSTFlags |= STFL_LEVELSPAWNED;
+	STFlags |= STFL_LEVELSPAWNED;
 }
 
 void AActor::HandleSpawnFlags ()
@@ -5579,6 +5579,16 @@ void AActor::PostBeginPlay ()
 	}
 	PrevAngle = angle;
 	flags7 |= MF7_HANDLENODELAY;
+
+	// [AK] Trigger an event script indicating that the actor has spawned.
+	GAMEMODE_HandleSpawnEvent( this );
+
+	// [AK] If the actor was spawned by a random spawner, then STFL_LEVELSPAWNED
+	// might be temporarily enabled for the purpose of indicating that the actor
+	// was (to an extent) spawned by the level in GAMEEVENT_ACTOR_SPAWNED. The
+	// flag must be disabled after that.
+	if (( STFlags & STFL_RANDOMSPAWNED ) && ( STFlags & STFL_LEVELSPAWNED ))
+		STFlags &= ~STFL_LEVELSPAWNED;
 }
 
 void AActor::MarkPrecacheSounds() const
@@ -6115,7 +6125,7 @@ APlayerPawn *P_SpawnPlayer (FPlayerStart *mthing, int playernum, int flags)
 		// the server from telling the clients to spawn the fog again during a full update.
 		if ( pFog && ( NETWORK_GetState( ) == NETSTATE_SERVER ) )
 		{
-			pFog->ulNetworkFlags |= NETFL_ALLOWCLIENTSPAWN;
+			pFog->NetworkFlags |= NETFL_ALLOWCLIENTSPAWN;
 			// [BB] Also remove the netID. Otherwise, the server will not know that 
 			// it cannot notify the client about changes to the fog, like when it is
 			// destroyed during a map reset.
@@ -6579,14 +6589,14 @@ AActor *P_SpawnMapThing (FMapThing *mthing, int position)
 */
 	// [BC] If we're a client, there's no need to spawn map things (unless specified).
 	if ( NETWORK_InClientMode() && 
-		(( info->ulNetworkFlags & NETFL_ALLOWCLIENTSPAWN ) == false ) &&
-		(( info->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) == false ))
+		(( info->NetworkFlags & NETFL_ALLOWCLIENTSPAWN ) == false ) &&
+		(( info->NetworkFlags & NETFL_CLIENTSIDEONLY ) == false ))
 	{
 		return NULL;
 	}
 
 	// [BB] The server doesn't spawn CLIENTSIDEONLY actors.
-	if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( info->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( info->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 	{
 		return NULL;
 	}
@@ -6728,7 +6738,7 @@ AActor *P_SpawnPuff (AActor *source, const PClass *pufftype, fixed_t x, fixed_t 
 		// We want to see if the actor would have NONETID on the actor without
 		// spawning it. Therefore we will get the type, and check the flag here.
 		AActor *pPuffActor = GetDefaultByType( pufftype );
-		if ( pPuffActor == NULL || ( ( pPuffActor->ulNetworkFlags & NETFL_NONETID ) == 0 ) )
+		if ( pPuffActor == NULL || ( ( pPuffActor->NetworkFlags & NETFL_NONETID ) == 0 ) )
 			return NULL;
 	}
 
@@ -6746,10 +6756,10 @@ AActor *P_SpawnPuff (AActor *source, const PClass *pufftype, fixed_t x, fixed_t 
 		z += source->actorRandom.Random2 () << 10;
 	}
 
-	puff = Spawn (pufftype, x, y, z, ALLOW_REPLACE, ( GetDefaultByType( pufftype )->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) ? NULL : NETWORK_GetActorsOwnerPlayer( source ));
+	puff = Spawn (pufftype, x, y, z, ALLOW_REPLACE, ( GetDefaultByType( pufftype )->NetworkFlags & NETFL_CLIENTSIDEONLY ) ? NULL : NETWORK_GetActorsOwnerPlayer( source ));
 	if (puff == NULL) return NULL;
 	
-	if ( !( puff->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( !( puff->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 	{
 		if ( sv_showactorrandom )
 			Printf("Checking random for \"%s\" in \"%s\" : %d\n", source->GetClass()->TypeName.GetChars( ), "P_SpawnPuff", source->actorRandom());
@@ -6780,7 +6790,7 @@ AActor *P_SpawnPuff (AActor *source, const PClass *pufftype, fixed_t x, fixed_t 
 		puff->FreeNetID();
 	
 	if ( NETWORK_InClientMode( ) )
-		puff->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		puff->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 	// If a puff has a crash state and an actor was not hit,
 	// it will enter the crash state. This is used by the StrifeSpark
@@ -7013,7 +7023,7 @@ void P_BloodSplatter (fixed_t x, fixed_t y, fixed_t z, AActor *originator)
 		// we also mark this as SERVERSIDEONLY.
 		if ( NETWORK_GetState () == NETSTATE_SERVER )
 		{
-			mo->ulNetworkFlags |= NETFL_SERVERSIDEONLY;
+			mo->NetworkFlags |= NETFL_SERVERSIDEONLY;
 			mo->FreeNetID ();
 		}
 
@@ -7520,7 +7530,7 @@ bool P_CheckMissileSpawn (AActor* th, fixed_t maxdist, bool bExplode)
 			else
 			{
 				// Potentially reward the player who shot this missile with an accuracy/precision medal.
-				if ((( th->ulSTFlags & STFL_EXPLODEONDEATH ) == false ) && th->target && th->target->player )
+				if ((( th->STFlags & STFL_EXPLODEONDEATH ) == false ) && th->target && th->target->player )
 				{
 					if ( th->target->player->bStruckPlayer && PLAYER_AwardMedalFromThisActor( th ) )
 						PLAYER_StruckPlayer( th->target->player );
@@ -7616,7 +7626,7 @@ AActor *P_SpawnMissileXYZ (fixed_t x, fixed_t y, fixed_t z,
 
 	AActor *th = Spawn (type, x, y, z, ALLOW_REPLACE, NETWORK_GetActorsOwnerPlayer( source ), bSkipOwner);
 
-	if ( !( th->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( !( th->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 	{
 		if ( sv_showactorrandom )
 			Printf("Checking random for \"%s\" in \"%s\" : %d\n", source->GetClass()->TypeName.GetChars( ), "P_SpawnMissileXYZ", source->actorRandom());
@@ -7680,7 +7690,7 @@ AActor *P_SpawnMissileXYZ (fixed_t x, fixed_t y, fixed_t z,
 
 	// Mark actor as clientside if spawned on client
 	if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( source ) && ( pMissile ) )
-		pMissile->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		pMissile->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 	// [BB] If we're the server, tell clients to spawn the missile.
 	if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( pMissile ))
@@ -7802,7 +7812,7 @@ AActor *P_SpawnMissileAngleZSpeed (AActor *source, fixed_t z,
 
 	mo = Spawn (type, source->x, source->y, z, ALLOW_REPLACE, NETWORK_GetActorsOwnerPlayer( source ), bSkipOwner);
 
-	if ( !( mo->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( !( mo->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 	{
 		if ( sv_showactorrandom )
 			Printf("Checking random for \"%s\" in \"%s\" : %d\n", source->GetClass()->TypeName.GetChars( ), "P_SpawnMissileAngleZSpeed", source->actorRandom());
@@ -7828,7 +7838,7 @@ AActor *P_SpawnMissileAngleZSpeed (AActor *source, fixed_t z,
 
 	// Mark actor as clientside if spawned on client
 	if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( source ) && pMissile )
-		pMissile->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		pMissile->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 	if ( ( NETWORK_GetState( ) == NETSTATE_SERVER ) && pMissile )
 	{
@@ -7983,12 +7993,12 @@ AActor *P_SpawnPlayerMissile (AActor *source, fixed_t x, fixed_t y, fixed_t z,
 		z += source->height / 2;
 
 	player_t *ownerPlayer = NULL;
-	if ( !bNoOwner && !( GetDefaultByType( type )->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( !bNoOwner && !( GetDefaultByType( type )->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 		ownerPlayer = NETWORK_GetActorsOwnerPlayer( source );
 	AActor *MissileActor = Spawn (type, source->x + x, source->y + y, z, ALLOW_REPLACE, ownerPlayer, bSkipOwner);
 	if (pMissileActor) *pMissileActor = MissileActor;
 
-	if ( !bNoOwner && !( MissileActor->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( !bNoOwner && !( MissileActor->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 	{
 		if ( sv_showactorrandom )
 			Printf("Checking random for \"%s\" in \"%s\" : %d\n", source->GetClass()->TypeName.GetChars( ), "P_SpawnPlayerMissile", source->actorRandom());
@@ -7997,7 +8007,7 @@ AActor *P_SpawnPlayerMissile (AActor *source, fixed_t x, fixed_t y, fixed_t z,
 
 	// Mark actor as clientside if spawned on client
 	if ( NETWORK_InClientMode() && NETWORK_ClientsideFunctionsAllowed( source ) )
-		MissileActor->ulNetworkFlags |= NETFL_CLIENTSIDEONLY;
+		MissileActor->NetworkFlags |= NETFL_CLIENTSIDEONLY;
 
 	if ( bSpawnSound )
 	{
@@ -8367,14 +8377,14 @@ void AActor::Revive()
 	// Otherwise level spawned actors revived by an Archvile won't be restored
 	// during a call of GAME_ResetMap.
 	// [WS] We also need this similar treatment for STFL_POSITIONCHANGED.
-	const bool actorWasLevelSpawned = !!(ulSTFlags & STFL_LEVELSPAWNED);
-	const bool actorHasPositionChanged = !!(ulSTFlags & STFL_POSITIONCHANGED);
-	ulSTFlags = info->ulSTFlags;
+	const bool actorWasLevelSpawned = !!(STFlags & STFL_LEVELSPAWNED);
+	const bool actorHasPositionChanged = !!(STFlags & STFL_POSITIONCHANGED);
+	STFlags = info->STFlags;
 	if ( actorWasLevelSpawned )
-		ulSTFlags |= STFL_LEVELSPAWNED;
+		STFlags |= STFL_LEVELSPAWNED;
 	if ( actorHasPositionChanged )
-		ulSTFlags |= STFL_POSITIONCHANGED;
-	ulNetworkFlags = info->ulNetworkFlags;
+		STFlags |= STFL_POSITIONCHANGED;
+	NetworkFlags = info->NetworkFlags;
 
 	DamageType = info->DamageType;
 	health = SpawnHealth();
@@ -8708,7 +8718,7 @@ CCMD( respawnactors )
 			}
 
 			pNewActor->flags &= ~MF_DROPPED;
-			pNewActor->ulSTFlags |= STFL_LEVELSPAWNED;
+			pNewActor->STFlags |= STFL_LEVELSPAWNED;
 
 			// Remove the old actor.
 			if ( NETWORK_GetState( ) == NETSTATE_SERVER )

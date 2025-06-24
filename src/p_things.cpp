@@ -352,7 +352,7 @@ bool P_Thing_Projectile (int tid, AActor *source, int type, const char *type_nam
 					mobj->AddToHash ();
 					P_PlaySpawnSound(mobj, spot);
 
-					if ( source != NULL && !( mobj->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+					if ( source != NULL && !( mobj->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 					{
 						if ( sv_showactorrandom )
 							Printf("Checking random for \"%s\" in \"%s\" : %d\n", source->GetClass()->TypeName.GetChars( ), "Thing_Projectile", source->actorRandom());
@@ -508,9 +508,9 @@ nolead:						mobj->angle = R_PointToAngle2 (mobj->x, mobj->y, targ->x, targ->y);
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_FLAGS7 );
 							if ( mobj->flags8 != mobj->GetDefault( )->flags8 )
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_FLAGS8 );
-							if ( mobj->ulSTFlags != mobj->GetDefault( )->ulSTFlags )
+							if ( mobj->STFlags != mobj->GetDefault( )->STFlags )
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_FLAGSST );
-							if ( mobj->ulSTFlags != mobj->GetDefault( )->mvFlags)
+							if ( mobj->STFlags != mobj->GetDefault( )->mvFlags)
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_MVFLAGS );
 
 							// [BB] If necessary, also adjust gravity.
@@ -540,9 +540,9 @@ nolead:						mobj->angle = R_PointToAngle2 (mobj->x, mobj->y, targ->x, targ->y);
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_FLAGS7 );
 							if ( mobj->flags8 != mobj->GetDefault( )->flags8 )
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_FLAGS8 );
-							if ( mobj->ulSTFlags != mobj->GetDefault( )->ulSTFlags )
+							if ( mobj->STFlags != mobj->GetDefault( )->STFlags )
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_FLAGSST );
-							if ( mobj->ulSTFlags != mobj->GetDefault( )->mvFlags)
+							if ( mobj->STFlags != mobj->GetDefault( )->mvFlags)
 								SERVERCOMMANDS_SetThingFlags( mobj, FLAGSET_MVFLAGS );
 
 							// [BB] If necessary, also adjust gravity.

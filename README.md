@@ -1,3 +1,5 @@
+## This edit is likely not intended to be merged with Q-Zandronum itself. This is an experimental fork.
+
 Welcome to Q-Zandronum!
 =====================
 

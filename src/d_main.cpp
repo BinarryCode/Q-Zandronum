@@ -629,6 +629,12 @@ CVAR (Flag, sv_disablewallfriction,			zadmflags, ZADF_DISABLE_WALL_FRICTION);
 CVAR (Flag, sv_enableprojectilehitboxfix,	zadmflags, ZADF_ENABLE_PROJECTILE_HITBOX_FIX);
 CVAR (Flag, sv_quakethrust,					zadmflags, ZADF_QUAKE_THRUST);
 CVAR (Flag, sv_elevatedspecialfix,			zadmflags, ZADF_ELEVATED_SPECIAL_FIX);
+CVAR (Flag, sv_shootthroughallies, zadmflags, ZADF_SHOOT_THROUGH_ALLIES);
+CVAR (Flag, sv_dontkeepjoinqueue, zadmflags, ZADF_DONT_KEEP_JOIN_QUEUE);
+CVAR (Flag, sv_donthidestats, zadmflags, ZADF_DONT_HIDE_STATS);
+CVAR (Flag, sv_nospawntelefog, zadmflags, ZADF_NO_SPAWN_TELEFOG);
+CVAR (Flag, sv_noallyicons, zadmflags, ZADF_NO_ALLY_ICONS);
+CVAR (Flag, sv_noenemyicons, zadmflags, ZADF_NO_ENEMY_ICONS);
 
 //==========================================================================
 //
@@ -817,6 +823,7 @@ CVAR (Flag, compat_fullweaponlower,								zacompatflags, ZACOMPATF_FULL_WEAPON_
 CVAR (Flag, compat_autoaim,										zacompatflags, ZACOMPATF_AUTOAIM);
 CVAR (Flag, compat_silentwestspawns,							zacompatflags, ZACOMPATF_SILENT_WEST_SPAWNS);
 CVAR (Flag, compat_skulltagjumping,								zacompatflags, ZACOMPATF_SKULLTAG_JUMPING);
+CVAR (Flag, compat_clientssendfullbuttoninfo,					zacompatflags, ZACOMPATF_CLIENTBUTTONINFO);
 
 #ifdef _WIN32
 extern int AppActive;

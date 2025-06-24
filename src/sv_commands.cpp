@@ -103,7 +103,7 @@ bool EnsureActorHasNetID( const AActor *pActor )
 
 	if ( pActor->lNetID == -1 )
 	{
-		if ( sv_showwarnings && !( pActor->ulNetworkFlags & NETFL_SERVERSIDEONLY ) )
+		if ( sv_showwarnings && !( pActor->NetworkFlags & NETFL_SERVERSIDEONLY ) )
 			Printf ( "Warning: Actor %s doesn't have a netID and therefore can't be manipulated online!\n", pActor->GetClass()->TypeName.GetChars() );
 		return false;
 	}
@@ -1125,7 +1125,7 @@ void SERVERCOMMANDS_SpawnThing( AActor *pActor, ULONG ulPlayerExtra, ServerComma
 	command.SetRandomSeed( pActor->randomSeed );
 	command.sendCommandToClients( ulPlayerExtra, flags );
 
-	if ( pActor->ulSTFlags & STFL_LEVELSPAWNED )
+	if ( pActor->STFlags & STFL_LEVELSPAWNED )
 	{
 		SERVERCOMMANDS_SetThingFlags( pActor, FLAGSET_FLAGS, ulPlayerExtra, flags );
 	}
@@ -1138,7 +1138,7 @@ void SERVERCOMMANDS_SpawnThingNoNetID( AActor *pActor, ULONG ulPlayerExtra, Serv
 	if ( pActor == NULL )
 		return;
 
-	if ( pActor->ulNetworkFlags & NETFL_SERVERSIDEONLY )
+	if ( pActor->NetworkFlags & NETFL_SERVERSIDEONLY )
 		return;
 
 	ServerCommands::SpawnThingNoNetID command;
@@ -1181,7 +1181,7 @@ void SERVERCOMMANDS_LevelSpawnThingNoNetID( AActor *pActor, ULONG ulPlayerExtra,
 	if ( pActor == NULL )
 		return;
 
-	if ( pActor->ulNetworkFlags & NETFL_SERVERSIDEONLY )
+	if ( pActor->NetworkFlags & NETFL_SERVERSIDEONLY )
 		return;
 
 	ServerCommands::LevelSpawnThingNoNetID command;
@@ -1375,7 +1375,7 @@ void SERVERCOMMANDS_SetThingFlags( AActor *pActor, FlagSet flagset, ULONG ulPlay
 		case FLAGSET_FLAGS6:	actorFlags = pActor->flags6; break;
 		case FLAGSET_FLAGS7:	actorFlags = pActor->flags7; break;
 		case FLAGSET_FLAGS8:	actorFlags = pActor->flags8; break;
-		case FLAGSET_FLAGSST:	actorFlags = pActor->ulSTFlags; break;
+		case FLAGSET_FLAGSST:	actorFlags = pActor->STFlags; break;
 		case FLAGSET_MVFLAGS:	actorFlags = pActor->mvFlags; break;
 		default: return;
 	}
@@ -1419,7 +1419,7 @@ void SERVERCOMMANDS_UpdateThingFlagsNotAtDefaults( AActor *pActor, ULONG ulPlaye
 	{
 		SERVERCOMMANDS_SetThingFlags( pActor, FLAGSET_FLAGS7, ulPlayerExtra, flags );
 	}
-	// [BB] ulSTFlags is intentionally left out here.
+	// [BB] STFlags is intentionally left out here.
 }
 
 //*****************************************************************************
@@ -3344,7 +3344,7 @@ void SERVERCOMMANDS_GiveInventory( ULONG ulPlayer, AInventory *pInventory, ULONG
 	if ( pInventory == NULL )
 		return;
 
-	if ( pInventory->ulNetworkFlags & NETFL_SERVERSIDEONLY )
+	if ( pInventory->NetworkFlags & NETFL_SERVERSIDEONLY )
 		return;
 
 	ServerCommands::GiveInventory command;
@@ -3387,7 +3387,7 @@ void SERVERCOMMANDS_TakeInventory( ULONG ulPlayer, const PClass *inventoryClass,
 	if ( PLAYER_IsValidPlayer( ulPlayer ) == false )
 		return;
 
-	if ( inventoryClass == NULL || ( GetDefaultByType ( inventoryClass )->ulNetworkFlags & NETFL_SERVERSIDEONLY ) )
+	if ( inventoryClass == NULL || ( GetDefaultByType ( inventoryClass )->NetworkFlags & NETFL_SERVERSIDEONLY ) )
 		return;
 
 	ServerCommands::TakeInventory command;
@@ -3447,7 +3447,7 @@ void SERVERCOMMANDS_GiveWeaponHolder( ULONG ulPlayer, AWeaponHolder *pHolder, UL
 	if ( pHolder == NULL )
 		return;
 
-	if ( pHolder->ulNetworkFlags & NETFL_SERVERSIDEONLY )
+	if ( pHolder->NetworkFlags & NETFL_SERVERSIDEONLY )
 		return;
 
 	ServerCommands::GiveWeaponHolder command;
@@ -4499,6 +4499,18 @@ void SERVERCOMMANDS_ShootDecal ( const FDecalTemplate* tpl, AActor* actor, fixed
 }
 
 //*****************************************************************************
+// [TP]
+void SERVERCOMMANDS_RCONAccess( int client )
+{
+	if ( SERVER_IsValidClient( client ) == false )
+		return;
+
+	NetCommand command ( SVC2_RCONACCESS );
+	command.addByte ( SERVER_GetClient( client )->bRCONAccess );
+	command.sendCommandToOneClient( client );
+}
+
+//*****************************************************************************
 // [AK]
 void SERVERCOMMANDS_SyncMapRotation( ULONG ulPlayerExtra, ServerCommandFlags flags )
 {
@@ -4561,6 +4573,26 @@ void SERVERCOMMANDS_DelFromMapRotation( const char *pszMapName, bool bClear, ULO
 	}
 
 	command.sendCommandToClients( ulPlayerExtra, flags );
+}
+
+//*****************************************************************************
+// [AK]
+void SERVERCOMMANDS_OpenMenu( const unsigned int player, const char *menuName )
+{
+	if (( PLAYER_IsValidPlayer( player ) == false ) || ( menuName == nullptr ) || ( strlen( menuName ) == 0 ))
+		return;
+
+	ServerCommands::OpenMenu command;
+	command.SetMenu( menuName );
+	command.sendCommandToClients( player, SVCF_ONLYTHISCLIENT );
+}
+
+//*****************************************************************************
+// [AK]
+void SERVERCOMMANDS_CloseMenu( const unsigned int player )
+{
+	ServerCommands::CloseMenu command;
+	command.sendCommandToClients( player, SVCF_ONLYTHISCLIENT );
 }
 
 //*****************************************************************************

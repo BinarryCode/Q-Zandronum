@@ -228,6 +228,8 @@ CUSTOM_CVAR ( Int, menu_textsizescalar, 0, CVAR_NOINITCALL )
 	M_TextSizeScalarChanged();
 }
 
+static int g_LastRconAccessRequest = -1;
+
 static int GetLevelNumFromName(const char* mapname, int category)
 {
 	if (stricmp(mapname, "random") == 0)
@@ -1105,6 +1107,32 @@ static void M_AutoSelect()
 		if (NETWORK_GetState() == NETSTATE_CLIENT)
 			CLIENTCOMMANDS_ExitMenu();
 	}
+}
+
+// =================================================================================================
+//
+//
+//
+//
+// =================================================================================================
+
+void M_RconAccessGranted()
+{
+	// [TP] We got RCON access. If this was done from the menu, forward the user to the server setup menu.
+	if (( g_LastRconAccessRequest > 0 ) && ( g_LastRconAccessRequest > gametic - 10 * TICRATE ))
+		M_SetMenu( "ZA_ServerSetupMenu" );
+}
+
+// =================================================================================================
+//
+//
+//
+//
+// =================================================================================================
+
+void M_SetLastRconAccessRequest( int tic )
+{
+	g_LastRconAccessRequest = tic;
 }
 
 // =================================================================================================

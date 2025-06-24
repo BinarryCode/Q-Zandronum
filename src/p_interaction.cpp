@@ -1365,6 +1365,7 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 		&& !(inflictor->flags2 & MF2_NODMGTHRUST)
 		&& !(flags & DMG_THRUSTLESS)
 		&& (source == NULL || source->player == NULL || !(source->flags2 & MF2_NODMGTHRUST))
+		&& (( PLAYER_CannotAffectAllyWith( source, target, inflictor, ZADF_DONT_PUSH_ALLIES ) == false ) || ( target->player == COOP_GetVoodooDollDummyPlayer() )) // [RK] Dolls need to be pushed.
 		&& ( NETWORK_ClientsideFunctionsAllowedOrIsServer( target ) ) )
 	{
 		int kickback;
@@ -1499,7 +1500,7 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 	}
 	
 	// [geNia] If client, then only do damage calculations for clientside actors
-	if ( NETWORK_InClientMode() && !( target->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( NETWORK_InClientMode() && !( target->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 		return -1;
 
 	// [RH] Avoid friendly fire if enabled
@@ -1525,7 +1526,8 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 	lOldTargetHealth = target->health;
 	if (player)
 	{
-		
+		bool bDamageEventHandled = false; // [AK]
+
 		// [TIHan/Spleen] Apply factor for damage dealt to players by monsters.
 		ApplyCoopDamagefactor(damage, source);
 
@@ -1547,6 +1549,11 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 			{ // player is invulnerable, so don't hurt him
 				return -1;
 			}
+
+			// [AK] Trigger an event script indicating that the player has taken damage before any damage
+			// can be absorbed by their armor. If the event returns 0, don't do anything else.
+			if (GAMEMODE_HandleDamageEvent(target, inflictor, source, damage, mod, true) == false)
+				return -1;
 
 			if (!(flags & DMG_NO_ARMOR) && player->mo->Inventory != NULL)
 			{
@@ -1570,6 +1577,13 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 				}
 			}
 			
+			// [AK] Trigger an event script indicating that the player has taken damage, if we can.
+			// If the event returns 0, then the target doesn't take damage and we do nothing.
+			if ( GAMEMODE_HandleDamageEvent( target, inflictor, source, damage, mod ) == false )
+				return -1;
+
+			bDamageEventHandled = true;
+
 			if (damage >= player->health
 				&& (G_SkillProperty(SKILLP_AutoUseHealth) || deathmatch)
 				&& !player->morphTics)
@@ -1577,6 +1591,11 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 				P_AutoUseHealth (player, damage - player->health + 1);
 			}
 		}
+
+		// [AK] If we haven't done so already, trigger an event script indicating that the player has taken damage.
+		// If the event returns 0, then the target doesn't take damage and we do nothing.
+		if (( bDamageEventHandled == false ) && ( GAMEMODE_HandleDamageEvent( target, inflictor, source, damage, mod ) == false ))
+			return -1;
 
 		player->health -= damage;		// mirror mobj health here for Dave
 		// [RH] Make voodoo dolls and real players record the same health
@@ -1614,6 +1633,12 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 			}
 		}
 
+		// [AK] In case blood_fade_usemaxhealth is enabled and we want to scale the intensity
+		// of the blood based on the player's max health, we scale the incoming damage using
+		// the max health. By default, the damagecount is based on a max health of 100.
+		int oldDamage = damage; // [CHECKMELATER]
+		// PLAYER_ScaleDamageCountWithMaxHealth( player, damage );
+
 		player->attacker = source;
 		if ( source && source->player )
 		{
@@ -1632,9 +1657,16 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 		{
 			I_Tactile (40,10,40+temp*2);
 		}
+		// [AK] Restore the old damage value, in case it was modified above.
+		damage = oldDamage;
 	}
 	else
 	{
+		// [AK] Trigger an event script indicating that the actor has taken damage before any damage
+		// can be absorbed by their armor. If the event returns 0, don't do anything else.
+		if (GAMEMODE_HandleDamageEvent(target, inflictor, source, damage, mod, true) == false)
+			return -1;
+
 		// Armor for monsters.
 		if (!(flags & (DMG_NO_ARMOR|DMG_FORCED)) && target->Inventory != NULL && damage > 0)
 		{
@@ -1646,7 +1678,12 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 				return damage;
 			}
 		}
-	
+
+		// [AK] Trigger an event script indicating that the target actor has taken damage, if we can.
+		// If the event returns 0, then the target doesn't take damage and we do nothing.
+		if ( GAMEMODE_HandleDamageEvent( target, inflictor, source, damage, mod ) == false )
+			return -1;
+
 		target->health -= damage;	
 	}
 
@@ -1738,7 +1775,7 @@ int P_DamageMobj (AActor *target, AActor *inflictor, AActor *source, int damage,
 		// kgKILL end
 
 		// Deaths are server side.
-		if ( ( NETWORK_InClientMode() == false ) || ( target->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+		if ( ( NETWORK_InClientMode() == false ) || ( target->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 		{
 			target->Die (source, inflictor, flags);
 		}
@@ -1831,7 +1868,7 @@ dopain:
 
 	// Nothing more to do!
 	// [geNia] If client, then only do state calculations for clientside actors
-	if ( NETWORK_InClientMode() && !( target->ulNetworkFlags & NETFL_CLIENTSIDEONLY ) )
+	if ( NETWORK_InClientMode() && !( target->NetworkFlags & NETFL_CLIENTSIDEONLY ) )
 		return -1;
 
 	target->reactiontime = 0;			// we're awake now...	
@@ -2086,6 +2123,12 @@ void P_PoisonDamage (player_t *player, AActor *source, int damage,
 	{ // Damage was reduced to 0, so don't bother further.
 		return;
 	}
+
+	// [AK] Trigger an event script indicating that the player has taken damage.
+	// If the event returns 0, then the player doesn't take damage and we do nothing.
+	if ( GAMEMODE_HandleDamageEvent( target, NULL, source, damage, player->poisontype ) == false )
+		return;
+
 	if (damage >= player->health
 		&& (G_SkillProperty(SKILLP_AutoUseHealth) || deathmatch)
 		&& !player->morphTics)
@@ -2779,7 +2822,7 @@ void PLAYER_SpectatorJoinsGame( player_t *pPlayer )
 	// player gets a new body.
 	if ( pPlayer->mo && pPlayer->bSpectating )
 	{
-		pPlayer->mo->ulSTFlags |= STFL_OBSOLETE_SPECTATOR_BODY;
+		pPlayer->mo->STFlags |= STFL_OBSOLETE_SPECTATOR_BODY;
 		// [BB] Also stop all associated scripts. Otherwise they would get disassociated
 		// and continue to run even if the player disconnects later.
 		if ( !( zacompatflags & ZACOMPATF_DONT_STOP_PLAYER_SCRIPTS_ON_DISCONNECT ) )
@@ -3336,6 +3379,116 @@ FString	PLAYER_GenerateUniqueName( void )
 	} while ( PLAYER_NameUsed ( name ) == true );
 	return name;
 }
+
+//*****************************************************************************
+//
+bool PLAYER_CanRespawnWhereDied( player_t *pPlayer )
+{
+	// [CHECKMELATER]
+	return true;
+}
+
+//*****************************************************************************
+//
+bool PLAYER_CannotAffectAllyWith( AActor *pActor1, AActor *pActor2, AActor *pInflictor, int flag )
+{
+	// [AK] Check if we have the corresponding zadmflag enabled.
+	if (( zadmflags & flag ) == false )
+		return false;
+
+	// [RK] Voodoo dolls still need to be affected since they're not really an 'ally'.
+	if ( pActor2 && pActor2->player && (pActor2->player->mo != pActor2 ))
+		return false;
+
+	// [AK] If the inflicting actor (e.g. projectile) is forced to affect allied players
+	// then don't bother checking.
+	if (( pInflictor != NULL ) && ( pInflictor->STFlags & STFL_FORCEALLYCOLLISION ))
+		return false;
+
+	// [AK] One of the actors must be a player, at least.
+	if (( pActor1 && pActor2 ) && ( pActor1 != pActor2 ) && ( pActor1->player || pActor2->player ))
+	{
+		// [AK] Check if the other actor is a teammate of the first actor.
+		if ( pActor1->IsTeammate( pActor2 ))
+			return true;
+
+		// [AK] Check if the other actor is a friend of the first actor. One of these actors must not be a player.
+		if (( pActor1->player == NULL || pActor2->player == NULL ) && ( pActor1->IsFriend( pActor2 )))
+			return true;
+	}
+
+	return false;
+}
+
+//*****************************************************************************
+//
+LONG PLAYER_CalcSpread( ULONG ulPlayer )
+{
+	ULONG ulFlags = GAMEMODE_GetCurrentFlags( );
+	LONG lHighestScore = 0;
+	bool bInit = true;
+
+	// First, find the highest fragcount that isn't ours.
+	for ( ULONG ulIdx = 0; ulIdx < MAXPLAYERS; ulIdx++ )
+	{
+		if (( ulPlayer == ulIdx ) || ( playeringame[ulIdx] == false ) || ( PLAYER_IsTrueSpectator( &players[ulIdx] )))
+			continue;
+
+		if (( ulFlags & GMF_PLAYERSEARNWINS ) && (( bInit ) || ( players[ulIdx].ulWins > static_cast<ULONG>( lHighestScore ))))
+		{
+			lHighestScore = players[ulIdx].ulWins;
+			bInit = false;
+		}
+		else if (( ulFlags & GMF_PLAYERSEARNPOINTS ) && (( bInit ) || ( players[ulIdx].lPointCount > lHighestScore )))
+		{
+			lHighestScore = players[ulIdx].lPointCount;
+			bInit = false;
+		}
+		else if (( ulFlags & GMF_PLAYERSEARNFRAGS ) && (( bInit ) || ( players[ulIdx].fragcount > lHighestScore )))
+		{
+			lHighestScore = players[ulIdx].fragcount;
+			bInit = false;
+		}
+	}
+
+	// [AK] Return the difference between our score and the highest score.
+	if ( bInit == false )
+	{
+		if ( ulFlags & GMF_PLAYERSEARNWINS )
+			return ( players[ulPlayer].ulWins - lHighestScore );
+		else if ( ulFlags & GMF_PLAYERSEARNPOINTS )
+			return ( players[ulPlayer].lPointCount - lHighestScore );
+		else
+			return ( players[ulPlayer].fragcount - lHighestScore );
+	}
+
+	// [AK] If we're the only person in the game just return zero.
+	return ( 0 );
+}
+
+//*****************************************************************************
+//
+ULONG PLAYER_CalcRank( ULONG ulPlayer )
+{
+	ULONG ulFlags = GAMEMODE_GetCurrentFlags( );
+	ULONG ulRank = 0;
+
+	for ( ULONG ulIdx = 0; ulIdx < MAXPLAYERS; ulIdx++ )
+	{
+		if (( ulIdx == ulPlayer ) || ( playeringame[ulIdx] == false ) || ( PLAYER_IsTrueSpectator( &players[ulIdx] )))
+			continue;
+
+		if (( ulFlags & GMF_PLAYERSEARNWINS ) && ( players[ulIdx].ulWins > players[ulPlayer].ulWins ))
+			ulRank++;
+		else if (( ulFlags & GMF_PLAYERSEARNPOINTS ) && ( players[ulIdx].lPointCount > players[ulPlayer].lPointCount ))
+			ulRank++;
+		else if (( ulFlags & GMF_PLAYERSEARNFRAGS ) && ( players[ulIdx].fragcount > players[ulPlayer].fragcount ))
+			ulRank++;
+	}
+
+	return ( ulRank );
+}
+
 
 CCMD (kill)
 {
